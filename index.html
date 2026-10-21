@@ -10,7 +10,7 @@
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--white);touch-action:none}
 canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:none;z-index:0}
 #hud{position:fixed;z-index:2;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px);display:flex;flex-direction:column;justify-content:space-between}
-.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.stat{background:#10172ad9;border:1px solid #283451;border-radius:15px;padding:10px 14px;backdrop-filter:blur(8px);min-width:100px}.label{font-size:11px;letter-spacing:.13em;color:#9da9c7;font-weight:800}.value{font-size:27px;line-height:1.15;font-weight:900;font-variant-numeric:tabular-nums}.right{display:flex;gap:8px;align-items:flex-start}.pill{border:1px solid #34415f;background:#11182bd9;color:#dbe4ff;border-radius:12px;padding:11px 13px;font-weight:800;font-size:13px;pointer-events:auto}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.stat{background:#10172ad9;border:1px solid #283451;border-radius:15px;padding:10px 14px;backdrop-filter:blur(8px);min-width:100px}.label{font-size:11px;letter-spacing:.13em;color:#9da9c7;font-weight:800}.value{font-size:27px;line-height:1.15;font-weight:900;font-variant-numeric:tabular-nums}.right{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}.pill{border:1px solid #34415f;background:#11182bd9;color:#dbe4ff;border-radius:12px;padding:11px 13px;font-weight:800;font-size:13px;pointer-events:auto}
 .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}.hint{font-size:12px;color:#9ca8c5;max-width:65%;line-height:1.45;text-shadow:0 2px 8px #000}.colorTag{display:flex;align-items:center;gap:8px;background:#10172ad9;border:1px solid #283451;border-radius:14px;padding:10px 12px;font-size:12px;font-weight:800}.dot{width:16px;height:16px;border-radius:50%;box-shadow:0 0 12px currentColor}
 .overlay{position:fixed;inset:0;display:grid;place-items:center;padding:22px;background:#050814a8;backdrop-filter:blur(8px);z-index:5}.card{width:min(100%,390px);background:linear-gradient(160deg,#17213a,#0c1222);border:1px solid #334263;border-radius:25px;padding:26px;box-shadow:0 24px 80px #0008}
 #mainOverlay{position:relative;inset:auto;display:block;min-height:100%;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 22px) 18px calc(env(safe-area-inset-bottom) + 22px);background:var(--bg);backdrop-filter:none;z-index:1}
@@ -35,6 +35,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 <div id="hud" class="menu-hidden">
   <div class="top">
     <div class="stat"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
+    <div class="stat"><div class="label">SURVIVAL</div><div class="value" id="survivalTime">0:00</div></div>
+    <div class="stat" style="min-width:84px"><div class="label">LIVES</div><div class="value" id="lives">♥♥♥</div></div>
     <div class="right">
       <div class="stat" style="min-width:84px"><div class="label">GOLD</div><div class="value" id="runGold">0</div></div>
       <div class="stat" style="min-width:84px"><div class="label">COMBO</div><div class="value" id="combo">×0</div></div>
@@ -55,7 +57,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <p class="desc">같은 색 공을 맞혀 점수를 쌓고, 다른 색 공은 피해서 최고 기록에 도전해 봐.</p>
     <div class="rules">
       <div class="rule"><span class="symbol" style="background:#63eaff;color:#07101f">✓</span> 같은 색 공은 점수 획득</div>
-      <div class="rule"><span class="symbol" style="background:#ff5d87;color:#240713">!</span> 다른 색 공에 맞으면 게임 오버</div>
+      <div class="rule"><span class="symbol" style="background:#ff5d87;color:#240713">!</span> 다른 색 공에 맞으면 생명 1개 감소 (총 3개)</div>
       <div class="rule"><span class="symbol" style="background:#26334f;color:#d9e4ff">↔</span> 화면을 드래그해 내 공을 움직여</div>
     </div>
     <div class="record-panel">
@@ -73,6 +75,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <div class="title" id="endTitle">GAME OVER</div>
     <p class="desc" id="endDesc">이번 기록</p>
     <div class="rules">
+      <div class="rule">생존 시간 <strong id="finalTime" style="margin-left:auto;font-size:22px">0초</strong></div>
       <div class="rule">이번 점수 <strong id="finalScore" style="margin-left:auto;font-size:22px">0</strong></div>
       <div class="rule">최고 점수 <strong id="bestScore" style="margin-left:auto;font-size:22px">0</strong></div>
     </div>
@@ -93,7 +96,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     {name:'VIOLET', hex:'#a78bff', glow:'#7048d9'},
     {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
   ];
-  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0;
+  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
   let selectedMode='normal';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20}};
@@ -109,7 +112,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function chooseColor(){return rand(colors.length)}
   function reset(){
     canvas.style.display='block';
-    score=0;combo=0;runGold=0;elapsed=0;spawnClock=.45;balls=[];particles=[];shake=0;
+    score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;spawnClock=.45;balls=[];particles=[];shake=0;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
     updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
     running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();
@@ -121,6 +124,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('homeGold').textContent=gold.toLocaleString();
     $('runGold').textContent=runGold.toLocaleString();
     $('score').textContent=score.toLocaleString();
+    $('survivalTime').textContent=Math.floor(elapsed/60)+':'+String(Math.floor(elapsed)%60).padStart(2,'0');
+    $('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);
+    $('lives').style.color=lives===1?'#ff5c91':'#ff7b9f';
     $('combo').textContent='×'+combo;
     $('colorDot').style.background=colors[player?player.color:0].hex;
     $('colorDot').style.color=colors[player?player.color:0].glow;
@@ -165,9 +171,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       announce('+'+gained+'  ·  +1 GOLD',b.color);
       updateHud();
     }else{
-      burst(player.x,player.y,player.color,32);
+      burst(player.x,player.y,player.color,24);
       burst(b.x,b.y,b.color,20);
-      gameOver();
+      if(invulnerable>0)return;
+      lives--;combo=0;invulnerable=1.25;shake=Math.min(12,shake+5);
+      updateHud();
+      if(lives<=0){gameOver();return;}
+      announce('생명 감소!  '+lives+'개 남음',b.color);
     }
   }
   function gameOver(){
@@ -176,11 +186,12 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     lastScore=score;
     best=Math.max(best,score);
     try{localStorage.setItem('colorBallsLast',String(lastScore));localStorage.setItem('colorBallsBest',String(best))}catch(e){}
+    $('finalTime').textContent=Math.floor(elapsed)+'초';
     $('finalScore').textContent=score.toLocaleString();
     $('bestScore').textContent=best.toLocaleString();
     $('endEyebrow').textContent=isNewBest?'NEW BEST!':'RUN ENDED';
     $('endTitle').textContent='GAME OVER';
-    $('endDesc').textContent='생존 시간 '+Math.floor(elapsed)+'초 · 최고 콤보 ×'+combo;
+    $('endDesc').textContent='생존 시간 '+Math.floor(elapsed)+'초 · 생존 점수 포함 · 최고 콤보 ×'+combo;
     $('endOverlay').classList.remove('hidden');
   }
   function backToTitle(){
@@ -200,7 +211,11 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     announce(paused?'PAUSED':'RESUME');
   }
   function update(dt){
+    const oldSeconds=Math.floor(elapsed);
     elapsed+=dt;
+    score+=Math.floor(elapsed)-oldSeconds;
+    invulnerable=Math.max(0,invulnerable-dt);
+    updateHud();
     const spawnInterval=Math.max(.22,(.82-elapsed*.009)*modeSettings[selectedMode].spawn);
     spawnClock+=dt;
     while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(elapsed>24&&Math.random()<modeSettings[selectedMode].extra)spawnBall();}
@@ -245,7 +260,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(player){
       const c=colors[player.color];
       player.trail.forEach((t,i)=>{ctx.globalAlpha=(i/player.trail.length)*.22;ctx.fillStyle=c.hex;ctx.beginPath();ctx.arc(t.x,t.y,player.r*(i/player.trail.length)*.8,0,Math.PI*2);ctx.fill()});
-      ctx.globalAlpha=1;ctx.save();ctx.shadowBlur=28;ctx.shadowColor=c.hex;
+      ctx.globalAlpha=1;ctx.save();if(invulnerable>0&&Math.floor(performance.now()/90)%2===0)ctx.globalAlpha=.28;ctx.shadowBlur=28;ctx.shadowColor=c.hex;
       const g=ctx.createRadialGradient(player.x-player.r*.35,player.y-player.r*.4,1,player.x,player.y,player.r*1.2);
       g.addColorStop(0,'#ffffff');g.addColorStop(.24,c.hex);g.addColorStop(1,c.glow);
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
