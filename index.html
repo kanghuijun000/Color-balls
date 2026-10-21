@@ -45,7 +45,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       <div class="rule"><span class="symbol" style="background:#ff5d87;color:#240713">!</span> 다른 색 공에 맞으면 게임 오버</div>
       <div class="rule"><span class="symbol" style="background:#26334f;color:#d9e4ff">↔</span> 화면을 드래그해 내 공을 움직여</div>
     </div>
-    <div class="rule" style="padding:13px 0;border-top:1px solid #2a3650;margin-bottom:8px">최고 기록 <strong id="homeBest" style="margin-left:auto;font-size:22px">0</strong></div>
+    <div class="rules" style="margin:12px 0 8px;border-top:1px solid #2a3650;padding-top:10px">
+      <div class="rule">이전 게임 점수 <strong id="homeLast" style="margin-left:auto;font-size:20px">0</strong></div>
+      <div class="rule">최고 점수 <strong id="homeBest" style="margin-left:auto;font-size:20px">0</strong></div>
+    </div>
     <div class="difficulty" aria-label="난이도 선택"><button class="mode" data-mode="easy">EASY</button><button class="mode selected" data-mode="normal">NORMAL</button><button class="mode" data-mode="hard">HARD</button></div>
     <button class="start" id="startBtn">게임 시작</button>
     <div class="small">터치 / 마우스 지원</div>
@@ -77,12 +80,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     {name:'VIOLET', hex:'#a78bff', glow:'#7048d9'},
     {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
   ];
-  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0;
+  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
   let selectedMode='normal';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20}};
   let toastUntil=0;
-  try{best=Number(localStorage.getItem('colorBallsBest')||0)}catch(e){}
+  try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0)}catch(e){}
   function resize(){
     dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
     canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
@@ -100,6 +103,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   }
   function updateHud(){
     $('homeBest').textContent=best.toLocaleString();
+    $('homeLast').textContent=lastScore.toLocaleString();
     $('score').textContent=score.toLocaleString();
     $('combo').textContent='×'+combo;
     $('colorDot').style.background=colors[player?player.color:0].hex;
@@ -151,8 +155,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   function gameOver(){
     running=false;paused=false;$('hud').classList.add('menu-hidden');
     const isNewBest=score>best;
+    lastScore=score;
     best=Math.max(best,score);
-    try{localStorage.setItem('colorBallsBest',String(best))}catch(e){}
+    try{localStorage.setItem('colorBallsLast',String(lastScore));localStorage.setItem('colorBallsBest',String(best))}catch(e){}
     $('finalScore').textContent=score.toLocaleString();
     $('bestScore').textContent=best.toLocaleString();
     $('endEyebrow').textContent=isNewBest?'NEW BEST!':'RUN ENDED';
@@ -166,7 +171,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     $('pauseBtn').textContent='Ⅱ';
     $('endOverlay').classList.add('hidden');
     $('mainOverlay').classList.remove('hidden');$('hud').classList.add('menu-hidden');
-    $('homeBest').textContent=best.toLocaleString();
+    $('homeBest').textContent=best.toLocaleString();$('homeLast').textContent=lastScore.toLocaleString();
     $('toast').style.opacity='0';
   }
   function togglePause(){
