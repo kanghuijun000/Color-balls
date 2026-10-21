@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#080b16">
+<title>COLOR-BALLS</title>
+<style>
+:root{color-scheme:dark;--bg:#080b16;--panel:#11182a;--muted:#8994b2;--white:#f5f7ff}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--white);touch-action:none}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px);display:flex;flex-direction:column;justify-content:space-between}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.stat{background:#10172ad9;border:1px solid #283451;border-radius:15px;padding:10px 14px;backdrop-filter:blur(8px);min-width:100px}.label{font-size:11px;letter-spacing:.13em;color:#9da9c7;font-weight:800}.value{font-size:27px;line-height:1.15;font-weight:900;font-variant-numeric:tabular-nums}.right{display:flex;gap:8px;align-items:flex-start}.pill{border:1px solid #34415f;background:#11182bd9;color:#dbe4ff;border-radius:12px;padding:11px 13px;font-weight:800;font-size:13px;pointer-events:auto}
+.bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}.hint{font-size:12px;color:#9ca8c5;max-width:65%;line-height:1.45;text-shadow:0 2px 8px #000}.colorTag{display:flex;align-items:center;gap:8px;background:#10172ad9;border:1px solid #283451;border-radius:14px;padding:10px 12px;font-size:12px;font-weight:800}.dot{width:16px;height:16px;border-radius:50%;box-shadow:0 0 12px currentColor}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding:22px;background:#050814a8;backdrop-filter:blur(8px);z-index:5}.card{width:min(100%,390px);background:linear-gradient(160deg,#17213a,#0c1222);border:1px solid #334263;border-radius:25px;padding:26px;box-shadow:0 24px 80px #0008}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
+#toast{position:fixed;top:26%;left:50%;transform:translate(-50%,-50%);font-weight:1000;font-size:clamp(24px,7vw,42px);text-shadow:0 4px 22px #000;pointer-events:none;opacity:0;white-space:nowrap}
+.hidden{display:none!important}
+@media(min-width:700px){.stat{min-width:125px}.value{font-size:32px}.hint{font-size:14px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="top">
+    <div class="stat"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
+    <div class="right">
+      <div class="stat" style="min-width:84px"><div class="label">COMBO</div><div class="value" id="combo">×0</div></div>
+      <button class="pill" id="pauseBtn" aria-label="일시정지">Ⅱ</button>
+    </div>
+  </div>
+  <div class="bottom">
+    <div class="hint" id="hint">같은 색 공은 점수! 다른 색 공은 위험!</div>
+    <div class="colorTag"><span class="dot" id="colorDot"></span><span id="colorName">내 색</span></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div class="overlay" id="startOverlay">
+  <div class="card">
+    <div class="eyebrow">REACTION · COLOR · SURVIVAL</div>
+    <div class="title">COLOR<br><span style="color:#6beaff">BALLS</span></div>
+    <p class="desc">날아오는 공 사이에서 살아남아 최고 점수를 기록해 봐. 같은 색을 맞히면 콤보가 이어져!</p>
+    <div class="rules">
+      <div class="rule"><span class="symbol" style="background:#63eaff;color:#07101f">✓</span> 내 공과 같은 색에 맞으면 점수 획득</div>
+      <div class="rule"><span class="symbol" style="background:#ff5d87;color:#240713">!</span> 다른 색 공에 맞으면 즉시 게임 오버</div>
+      <div class="rule"><span class="symbol" style="background:#26334f;color:#d9e4ff">↔</span> 화면을 드래그해 내 공을 움직여</div>
+    </div>
+    <button class="start" id="startBtn">게임 시작</button>
+    <div class="small">프로토타입 · 터치 / 마우스 지원</div>
+  </div>
+</div>
+<div class="overlay hidden" id="endOverlay">
+  <div class="card">
+    <div class="eyebrow" id="endEyebrow">RUN ENDED</div>
+    <div class="title" id="endTitle">GAME OVER</div>
+    <p class="desc" id="endDesc">이번 기록</p>
+    <div class="rules">
+      <div class="rule">이번 점수 <strong id="finalScore" style="margin-left:auto;font-size:22px">0</strong></div>
+      <div class="rule">최고 점수 <strong id="bestScore" style="margin-left:auto;font-size:22px">0</strong></div>
+    </div>
+    <button class="start" id="retryBtn">다시 플레이</button>
+    <div class="small">공의 흐름을 읽고 다음 기록에 도전해 봐</div>
+  </div>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const colors = [
+    {name:'CYAN', hex:'#5be7ff', glow:'#1aa9df'},
+    {name:'PINK', hex:'#ff5c91', glow:'#d42d70'},
+    {name:'YELLOW', hex:'#ffe36a', glow:'#d6a92a'},
+    {name:'VIOLET', hex:'#a78bff', glow:'#7048d9'},
+    {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
+  ];
+  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0;
+  let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
+  let toastUntil=0;
+  try{best=Number(localStorage.getItem('colorBallsBest')||0)}catch(e){}
+  function resize(){
+    dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
+    canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(player){player.x=Math.min(W-player.r,Math.max(player.r,player.x));player.y=Math.min(H-player.r,Math.max(player.r,player.y));}
+  }
+  function rand(n){return Math.floor(Math.random()*n)}
+  function chooseColor(){return rand(colors.length)}
+  function reset(){
+    score=0;combo=0;elapsed=0;spawnClock=.45;balls=[];particles=[];shake=0;
+    player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
+    updateHud();$('startOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');
+    running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();
+    announce('GO!',player.color);
+  }
+  function updateHud(){
+    $('score').textContent=score.toLocaleString();
+    $('combo').textContent='×'+combo;
+    $('colorDot').style.background=colors[player?player.color:0].hex;
+    $('colorDot').style.color=colors[player?player.color:0].glow;
+    $('colorName').textContent=colors[player?player.color:0].name;
+  }
+  function announce(text,color){
+    const t=$('toast');t.textContent=text;t.style.color=color==null?'#fff':colors[color].hex;t.style.opacity='1';toastUntil=performance.now()+650;
+  }
+  function spawnBall(){
+    const edge=rand(4),margin=34;
+    let x,y;
+    if(edge===0){x=-margin;y=Math.random()*H}
+    else if(edge===1){x=W+margin;y=Math.random()*H}
+    else if(edge===2){x=Math.random()*W;y=-margin}
+    else{x=Math.random()*W;y=H+margin}
+    // Target a point near the player, with a controllable spread rather than a perfect homing shot.
+    const aimX=player.x+(Math.random()-.5)*Math.min(W*.72,260);
+    const aimY=player.y+(Math.random()-.5)*Math.min(H*.62,220);
+    const angle=Math.atan2(aimY-y,aimX-x)+(Math.random()-.5)*(0.18+Math.min(.65,elapsed*.006));
+    const speed=145+Math.min(210,elapsed*4.1)+Math.random()*55;
+    const color=chooseColor();
+    const kind=elapsed>9&&Math.random()<Math.min(.48,elapsed*.012)?rand(3):0;
+    balls.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:9+Math.random()*5,color,kind,age:0,phase:Math.random()*Math.PI*2,turn:(Math.random()<.5?-1:1)*(45+Math.random()*95)});
+  }
+  function burst(x,y,color,count=18){
+    for(let i=0;i<count;i++){
+      const a=Math.random()*Math.PI*2,s=35+Math.random()*210;
+      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:2+Math.random()*3,life:.45+Math.random()*.55,max:.9,color});
+    }
+  }
+  function hitBall(b){
+    if(b.color===player.color){
+      combo++;
+      const base=10+Math.floor(elapsed/12);
+      const mult=Math.min(12,1+Math.floor((combo-1)/2));
+      const gained=base*mult;
+      score+=gained;
+      burst(b.x,b.y,b.color,12+Math.min(20,combo));
+      shake=Math.min(7,shake+1.3);
+      announce('+'+gained+'  ×'+combo,b.color);
+      updateHud();
+    }else{
+      burst(player.x,player.y,player.color,32);
+      burst(b.x,b.y,b.color,20);
+      gameOver();
+    }
+  }
+  function gameOver(){
+    running=false;paused=false;
+    best=Math.max(best,score);
+    try{localStorage.setItem('colorBallsBest',String(best))}catch(e){}
+    $('finalScore').textContent=score.toLocaleString();
+    $('bestScore').textContent=best.toLocaleString();
+    $('endEyebrow').textContent=score>=best&&score>0?'NEW BEST!':'RUN ENDED';
+    $('endTitle').textContent='GAME OVER';
+    $('endDesc').textContent='생존 시간 '+Math.floor(elapsed)+'초 · 최고 콤보 ×'+combo;
+    $('endOverlay').classList.remove('hidden');
+  }
+  function togglePause(){
+    if(!running)return;
+    paused=!paused;$('pauseBtn').textContent=paused?'▶':'Ⅱ';
+    if(!paused)last=performance.now();
+    announce(paused?'PAUSED':'RESUME');
+  }
+  function update(dt){
+    elapsed+=dt;
+    const spawnInterval=Math.max(.22,.82-elapsed*.009);
+    spawnClock+=dt;
+    while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(elapsed>24&&Math.random()<.18)spawnBall();}
+    // Smoothly follow pointer position while preserving a little inertia.
+    player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+    player.y=Math.max(player.r+52,Math.min(H-player.r-28,player.y));
+    player.trail.push({x:player.x,y:player.y});if(player.trail.length>7)player.trail.shift();
+    for(let i=balls.length-1;i>=0;i--){
+      const b=balls[i];b.age+=dt;
+      if(b.kind===1){b.phase+=dt*2.3;b.vx+=Math.sin(b.phase)*55*dt;b.vy+=Math.cos(b.phase*.7)*35*dt;}
+      if(b.kind===2&&b.age>.7){const a=Math.atan2(player.y-b.y,player.x-b.x);b.vx+=Math.cos(a)*65*dt;b.vy+=Math.sin(a)*65*dt;}
+      if(b.kind===3){b.phase+=dt*2.8;b.vx+=Math.cos(b.phase)*b.turn*dt;b.vy+=Math.sin(b.phase)*b.turn*dt;}
+      b.x+=b.vx*dt;b.y+=b.vy*dt;
+      const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
+      if(dist<b.r+player.r){balls.splice(i,1);hitBall(b);if(!running)return;continue;}
+      if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)balls.splice(i,1);
+    }
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.08,dt);p.vy*=Math.pow(.08,dt);if(p.life<=0)particles.splice(i,1);}
+    shake=Math.max(0,shake-dt*18);
+  }
+  function drawBall(b){
+    const c=colors[b.color];
+    ctx.save();ctx.globalAlpha=.24;ctx.strokeStyle=c.hex;ctx.lineWidth=b.r*1.25;ctx.beginPath();ctx.moveTo(b.x-b.vx*.055,b.y-b.vy*.055);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore();
+    ctx.save();ctx.shadowBlur=18;ctx.shadowColor=c.glow;
+    const g=ctx.createRadialGradient(b.x-b.r*.3,b.y-b.r*.35,1,b.x,b.y,b.r);
+    g.addColorStop(0,'#ffffff');g.addColorStop(.22,c.hex);g.addColorStop(1,c.glow);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    if(b.kind){ctx.strokeStyle='#ffffffaa';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(b.x,b.y,b.r+4,0,Math.PI*2);ctx.stroke();}
+  }
+  function draw(){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);
+    const grad=ctx.createLinearGradient(0,0,W,H);grad.addColorStop(0,'#080b16');grad.addColorStop(1,'#0c1223');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+    // Quiet grid and ambient stars.
+    ctx.strokeStyle='#ffffff08';ctx.lineWidth=1;
+    const step=42;for(let x=(W%step)/2;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(let y=(H%step)/2;y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+    balls.forEach(drawBall);
+    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=colors[p.color].hex;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();});ctx.globalAlpha=1;
+    if(player){
+      const c=colors[player.color];
+      player.trail.forEach((t,i)=>{ctx.globalAlpha=(i/player.trail.length)*.22;ctx.fillStyle=c.hex;ctx.beginPath();ctx.arc(t.x,t.y,player.r*(i/player.trail.length)*.8,0,Math.PI*2);ctx.fill()});
+      ctx.globalAlpha=1;ctx.save();ctx.shadowBlur=28;ctx.shadowColor=c.hex;
+      const g=ctx.createRadialGradient(player.x-player.r*.35,player.y-player.r*.4,1,player.x,player.y,player.r*1.2);
+      g.addColorStop(0,'#ffffff');g.addColorStop(.24,c.hex);g.addColorStop(1,c.glow);
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
+      ctx.strokeStyle='#ffffffcc';ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x,player.y,player.r+5,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.restore();
+    if(performance.now()>toastUntil)$('toast').style.opacity='0';
+  }
+  function frame(now){
+    const dt=Math.min(.033,(now-last)/1000||0);last=now;
+    if(running&&!paused)update(dt);
+    draw();requestAnimationFrame(frame);
+  }
+  function pointerMove(e){
+    if(!pointerDown||!player)return;
+    const rect=canvas.getBoundingClientRect();
+    player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    if(!running||paused)return;
+    pointerDown=true;pointerId=e.pointerId;canvas.setPointerCapture(e.pointerId);pointerMove(e);
+  });
+  canvas.addEventListener('pointermove',pointerMove);
+  const release=()=>{pointerDown=false;pointerId=null};
+  canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+  $('startBtn').addEventListener('click',reset);$('retryBtn').addEventListener('click',reset);
+  $('pauseBtn').addEventListener('click',togglePause);
+  window.addEventListener('resize',resize);
+  resize();
+  player={x:W/2,y:H*.65,r:20,color:0,trail:[]};updateHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
