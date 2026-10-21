@@ -143,11 +143,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   }
   function gameOver(){
     running=false;paused=false;
+    const isNewBest=score>best;
     best=Math.max(best,score);
     try{localStorage.setItem('colorBallsBest',String(best))}catch(e){}
     $('finalScore').textContent=score.toLocaleString();
     $('bestScore').textContent=best.toLocaleString();
-    $('endEyebrow').textContent=score>=best&&score>0?'NEW BEST!':'RUN ENDED';
+    $('endEyebrow').textContent=isNewBest?'NEW BEST!':'RUN ENDED';
     $('endTitle').textContent='GAME OVER';
     $('endDesc').textContent='생존 시간 '+Math.floor(elapsed)+'초 · 최고 콤보 ×'+combo;
     $('endOverlay').classList.remove('hidden');
