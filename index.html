@@ -24,6 +24,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <div id="hud" class="menu-hidden">
   <div class="top">
     <div class="stat"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
+    <div class="stat"><div class="label">GOLD</div><div class="value" id="gold">0</div></div>
     <div class="right">
       <div class="stat" style="min-width:84px"><div class="label">COMBO</div><div class="value" id="combo">×0</div></div>
       <button class="pill" id="pauseBtn" aria-label="일시정지">Ⅱ</button>
@@ -80,12 +81,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     {name:'VIOLET', hex:'#a78bff', glow:'#7048d9'},
     {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
   ];
-  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0;
+  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
   let selectedMode='normal';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20}};
   let toastUntil=0;
-  try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0)}catch(e){}
+  try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);gold=Number(localStorage.getItem('colorBallsGold')||0)}catch(e){}
   function resize(){
     dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
     canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
@@ -105,6 +106,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     $('homeBest').textContent=best.toLocaleString();
     $('homeLast').textContent=lastScore.toLocaleString();
     $('score').textContent=score.toLocaleString();
+    $('gold').textContent=gold.toLocaleString();
     $('combo').textContent='×'+combo;
     $('colorDot').style.background=colors[player?player.color:0].hex;
     $('colorDot').style.color=colors[player?player.color:0].glow;
@@ -142,9 +144,11 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       const mult=Math.min(12,1+Math.floor((combo-1)/2));
       const gained=base*mult;
       score+=gained;
+      gold++;
+      try{localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
       burst(b.x,b.y,b.color,12+Math.min(20,combo));
       shake=Math.min(7,shake+1.3);
-      announce('+'+gained+'  ×'+combo,b.color);
+      announce('+'+gained+'  ·  +1 GOLD',b.color);
       updateHud();
     }else{
       burst(player.x,player.y,player.color,32);
