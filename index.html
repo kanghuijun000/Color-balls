@@ -247,11 +247,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   canvas.addEventListener('pointermove',pointerMove);
   const release=()=>{pointerDown=false;pointerId=null};
   canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
-  $('mode');
-  function $(){return [...document.querySelectorAll('.mode')]} 
-  $('.mode').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>{
     selectedMode=btn.dataset.mode;
-    $('.mode').forEach(item=>item.classList.toggle('selected',item===btn));
+    document.querySelectorAll('.mode').forEach(item=>item.classList.toggle('selected',item===btn));
   }));
   $('startBtn').addEventListener('click',reset);$('retryBtn').addEventListener('click',reset);
   $('exitBtn').addEventListener('click',backToTitle);
