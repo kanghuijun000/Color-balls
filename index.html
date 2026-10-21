@@ -20,7 +20,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 #mainOverlay .record-panel{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 8px}
 #mainOverlay .record{border:1px solid #2a3650;border-radius:15px;background:#10172ad9;padding:13px}
 #mainOverlay .record-label{font-size:12px;color:#9da9c7;font-weight:800}
-#mainOverlay .record-value{font-size:25px;font-weight:1000;margin-top:4px;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.difficulty{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:12px 5px;background:#101a2d;color:#b9c5e2;font-size:13px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
+#mainOverlay .record-value{font-size:25px;font-weight:1000;margin-top:4px;font-variant-numeric:tabular-nums}
+#mainOverlay .home-gold{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin:4px 0 16px;border:1px solid #3a4563;border-radius:15px;background:#10172ad9}
+#mainOverlay .home-gold span{font-size:13px;font-weight:800;color:#aebbd8}
+#mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.difficulty{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:12px 5px;background:#101a2d;color:#b9c5e2;font-size:13px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
 #toast{position:fixed;top:26%;left:50%;transform:translate(-50%,-50%);font-weight:1000;font-size:clamp(24px,7vw,42px);text-shadow:0 4px 22px #000;pointer-events:none;opacity:0;white-space:nowrap}
 .hidden{display:none!important}
 #hud.menu-hidden{display:none!important}
@@ -32,8 +35,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <div id="hud" class="menu-hidden">
   <div class="top">
     <div class="stat"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
-    <div class="stat"><div class="label">GOLD</div><div class="value" id="gold">0</div></div>
     <div class="right">
+      <div class="stat" style="min-width:84px"><div class="label">GOLD</div><div class="value" id="runGold">0</div></div>
       <div class="stat" style="min-width:84px"><div class="label">COMBO</div><div class="value" id="combo">×0</div></div>
       <button class="pill" id="pauseBtn" aria-label="일시정지">Ⅱ</button>
     </div>
@@ -47,6 +50,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <div class="overlay" id="mainOverlay">
   <div class="card">
     <div class="eyebrow">REACTION · COLOR · SURVIVAL</div>
+    <div class="home-gold"><span>보유 골드</span><strong id="homeGold">0</strong></div>
     <div class="title">COLOR<br><span style="color:#6beaff">BALLS</span></div>
     <p class="desc">같은 색 공을 맞혀 점수를 쌓고, 다른 색 공은 피해서 최고 기록에 도전해 봐.</p>
     <div class="rules">
@@ -89,7 +93,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     {name:'VIOLET', hex:'#a78bff', glow:'#7048d9'},
     {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
   ];
-  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0;
+  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
   let selectedMode='normal';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20}};
@@ -104,7 +108,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   function rand(n){return Math.floor(Math.random()*n)}
   function chooseColor(){return rand(colors.length)}
   function reset(){
-    score=0;combo=0;elapsed=0;spawnClock=.45;balls=[];particles=[];shake=0;
+    score=0;combo=0;runGold=0;elapsed=0;spawnClock=.45;balls=[];particles=[];shake=0;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
     updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
     running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();
@@ -113,8 +117,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   function updateHud(){
     $('homeBest').textContent=best.toLocaleString();
     $('homeLast').textContent=lastScore.toLocaleString();
+    $('homeGold').textContent=gold.toLocaleString();
+    $('runGold').textContent=runGold.toLocaleString();
     $('score').textContent=score.toLocaleString();
-    $('gold').textContent=gold.toLocaleString();
     $('combo').textContent='×'+combo;
     $('colorDot').style.background=colors[player?player.color:0].hex;
     $('colorDot').style.color=colors[player?player.color:0].glow;
@@ -152,7 +157,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       const mult=Math.min(12,1+Math.floor((combo-1)/2));
       const gained=base*mult;
       score+=gained;
-      gold++;
+      gold++;runGold++;
       try{localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
       burst(b.x,b.y,b.color,12+Math.min(20,combo));
       shake=Math.min(7,shake+1.3);
