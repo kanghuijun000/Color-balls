@@ -98,6 +98,15 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <div class="confirmActions"><button class="secondary" id="cancelBuyBtn" style="margin-top:0">취소</button><button class="start" id="confirmBuyBtn">구매하기</button></div>
   </div>
 </div>
+<div class="overlay hidden" id="pauseOverlay">
+  <div class="card">
+    <div class="eyebrow">GAME PAUSED</div>
+    <div class="title">일시정지</div>
+    <p class="desc">게임을 어떻게 할까?</p>
+    <button class="start" id="resumeCountdownBtn">다시 시작</button>
+    <button class="secondary" id="abandonBtn">나가기</button>
+  </div>
+</div>
 <div id="skillButtons" class="hidden"></div>
 <div class="overlay hidden" id="endOverlay">
   <div class="card">
@@ -127,8 +136,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
   ];
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
-  let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
-  let selectedMode='normal';
+  let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
+  let selectedMode='easy';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20},extreme:{spawn:.68,speed:1.22,extra:.34}};
   let extremeBurst=0,extremeNext=0;
   let shieldSkills=0,slowSkills=0,slowTimer=0,shieldCooldown=0,slowCooldown=0,lastSkillSignature='',pendingBuyType=null;
@@ -309,10 +318,25 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('buySlowBtn').innerHTML=slowSkills>=3?'보유 최대':'30 골드<br>구매';
   }
   function togglePause(){
+    if(!running||countdown>0)return;
+    paused=true;pointerDown=false;pointerId=null;
+    $('pauseBtn').textContent='▶';
+    $('pauseOverlay').classList.remove('hidden');
+    updateSkillButtonLabels();
+  }
+  function beginResumeCountdown(){
     if(!running)return;
-    paused=!paused;$('pauseBtn').textContent=paused?'▶':'Ⅱ';
-    if(!paused)last=performance.now();
-    announce(paused?'PAUSED':'RESUME');
+    $('pauseOverlay').classList.add('hidden');
+    paused=false;countdown=3;last=performance.now();
+    $('pauseBtn').textContent='Ⅱ';
+    updateSkillButtonLabels();
+  }
+  function abandonRun(){
+    if(runGold>0){
+      gold=Math.max(0,gold-runGold);
+      try{localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+    }
+    runGold=0;backToTitle();updateHud();
   }
   function update(dt){
     const oldSeconds=Math.floor(elapsed);
@@ -416,7 +440,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   $('cancelBuyBtn').addEventListener('click',()=>{$('buyConfirmOverlay').classList.add('hidden');pendingBuyType=null;});
   $('confirmBuyBtn').addEventListener('click',()=>{const type=pendingBuyType;pendingBuyType=null;$('buyConfirmOverlay').classList.add('hidden');if(type)buySkill(type);});
   $('exitBtn').addEventListener('click',backToTitle);
-  $('pauseBtn').addEventListener('click',togglePause);
+  $('pauseBtn').addEventListener('click',togglePause);\n  $('resumeCountdownBtn').addEventListener('click',beginResumeCountdown);\n  $('abandonBtn').addEventListener('click',abandonRun);
   window.addEventListener('resize',resize);
   resize();
   player=null;updateHud();
