@@ -170,9 +170,6 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('survivalTime').textContent=Math.floor(elapsed/60)+':'+String(Math.floor(elapsed)%60).padStart(2,'0');
     $('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);
     $('lives').style.color=lives===1?'#ff5c91':'#ff7b9f';
-    $('colorDot').style.background=colors[player?player.color:0].hex;
-    $('colorDot').style.color=colors[player?player.color:0].glow;
-    $('colorName').textContent=colors[player?player.color:0].name;
   }
   function announce(text,color){
     const t=$('toast');t.textContent=text;t.style.color=color==null?'#fff':colors[color].hex;t.style.opacity='1';t.style.transform='translate(-50%,-50%)';toastUntil=performance.now()+520;
