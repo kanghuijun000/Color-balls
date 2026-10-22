@@ -239,10 +239,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('endOverlay').classList.remove('hidden');
   }
   function backToTitle(){
-    running=false;paused=false;pointerDown=false;pointerId=null;
+    running=false;paused=false;pointerDown=false;pointerId=null;countdown=0;
     canvas.style.display='none';
     balls=[];particles=[];shake=0;
     $('pauseBtn').textContent='Ⅱ';
+    $('pauseOverlay').classList.add('hidden');
+    $('shopOverlay').classList.add('hidden');
+    $('buyConfirmOverlay').classList.add('hidden');
     $('endOverlay').classList.add('hidden');
     $('mainOverlay').classList.remove('hidden');$('hud').classList.add('menu-hidden');
     $('homeBest').textContent=best.toLocaleString();$('homeLast').textContent=lastScore.toLocaleString();
