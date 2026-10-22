@@ -244,24 +244,69 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function renderSkillButtons(){
     const box=$('skillButtons');
     const signature=running+'|'+shieldSkills+'|'+slowSkills;
-    if(signature===lastSkillSignature)return;
-    lastSkillSignature=signature;box.innerHTML='';
-    if(shieldSkills>0){const b=document.createElement('button');b.className='skillButton';b.dataset.skill='shield';b.addEventListener('click',()=>useSkill('shield'));box.appendChild(b);}
-    if(slowSkills>0){const b=document.createElement('button');b.className='skillButton';b.dataset.skill='slow';b.addEventListener('click',()=>useSkill('slow'));box.appendChild(b);}
-    box.classList.toggle('hidden',!running||(shieldSkills<=0&&slowSkills<=0));updateSkillButtonLabels();
+    if(signature!==lastSkillSignature){
+      lastSkillSignature=signature;box.innerHTML='';
+      if(shieldSkills>0){const button=document.createElement('button');button.className='skillButton';button.dataset.skill='shield';button.addEventListener('click',()=>useSkill('shield'));box.appendChild(button);}
+      if(slowSkills>0){const button=document.createElement('button');button.className='skillButton';button.dataset.skill='slow';button.addEventListener('click',()=>useSkill('slow'));box.appendChild(button);}
+    }
+    box.classList.toggle('hidden',!running||(shieldSkills<=0&&slowSkills<=0));
+    updateSkillButtonLabels();
+  }
+  function updateSkillButtonLabels(){
+    $('skillButtons').querySelectorAll('[data-skill]').forEach(button=>{
+      const type=button.dataset.skill;
+      const count=type==='shield'?shieldSkills:slowSkills;
+      const cooldown=type==='shield'?shieldCooldown:slowCooldown;
+      const name=type==='shield'?'3초 무적':'5초 슬로우';
+      button.textContent=name+' ('+count+')'+(cooldown>0?' · 쿨타임 '+cooldown.toFixed(1)+'초':'');
+      button.disabled=cooldown>0||!running||paused;
+    });
   }
   function useSkill(type){
     if(!running||paused)return;
-    if(type==='shield'&&shieldSkills>0){shieldSkills--;invulnerable=3;try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills))}catch(e){}announce('3초 무적!',0);}
-    else if(type==='slow'&&slowSkills>0){slowSkills--;slowTimer=5;try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills))}catch(e){}announce('5초 슬로우!',3);}
+    const count=type==='shield'?shieldSkills:slowSkills;
+    const cooldown=type==='shield'?shieldCooldown:slowCooldown;
+    if(count<=0||cooldown>0)return;
+    if(type==='shield'){
+      shieldSkills--;invulnerable=3;shieldCooldown=5;
+      try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills))}catch(e){}
+      announce('3초 무적!',0);
+    }else{
+      slowSkills--;slowTimer=5;slowCooldown=5;
+      try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills))}catch(e){}
+      announce('5초 슬로우!',3);
+    }
     updateHud();
   }
+  function askBuySkill(type){
+    pendingBuyType=type;
+    const name=type==='shield'?'3초 무적':'5초 슬로우';
+    $('confirmTitle').textContent=name+' 구매';
+    $('confirmMessage').textContent='30 골드를 사용해 '+name+' 스킬을 구매할까?';
+    $('buyConfirmOverlay').classList.remove('hidden');
+  }
   function buySkill(type){
+    const count=type==='shield'?shieldSkills:slowSkills;
+    if(count>=3){announce('스킬은 최대 3개까지 보유할 수 있어');return;}
     if(gold<30){announce('골드가 부족해');return;}
     gold-=30;
-    if(type==='shield'){shieldSkills++;try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}}
-    else{slowSkills++;try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}}
-    updateHud();announce('스킬 구매 완료');
+    if(type==='shield'){
+      shieldSkills++;
+      try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+    }else{
+      slowSkills++;
+      try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+    }
+    updateHud();refreshShop();announce('스킬 구매 완료');
+  }
+  function refreshShop(){
+    $('shopGold').textContent=gold.toLocaleString();
+    $('shieldOwned').textContent=shieldSkills+' / 3';
+    $('slowOwned').textContent=slowSkills+' / 3';
+    $('buyShieldBtn').disabled=shieldSkills>=3||gold<30;
+    $('buySlowBtn').disabled=slowSkills>=3||gold<30;
+    $('buyShieldBtn').innerHTML=shieldSkills>=3?'보유 최대':'30 골드<br>구매';
+    $('buySlowBtn').innerHTML=slowSkills>=3?'보유 최대':'30 골드<br>구매';
   }
   function togglePause(){
     if(!running)return;
@@ -365,9 +410,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function refreshModeButton(){ $('cycleModeBtn').textContent=selectedMode.toUpperCase(); }
   $('cycleModeBtn').addEventListener('click',()=>{const idx=modeCycle.indexOf(selectedMode);selectedMode=modeCycle[(idx+1)%modeCycle.length];refreshModeButton();});
   $('startBtn').addEventListener('click',reset);$('retryBtn').addEventListener('click',reset);
-  $('openShopBtn').addEventListener('click',()=>{$('shopGold').textContent=gold.toLocaleString();$('mainOverlay').classList.add('hidden');$('shopOverlay').classList.remove('hidden');});
+  $('openShopBtn').addEventListener('click',()=>{refreshShop();$('mainOverlay').classList.add('hidden');$('shopOverlay').classList.remove('hidden');});
   $('closeShopBtn').addEventListener('click',()=>{$('shopOverlay').classList.add('hidden');$('mainOverlay').classList.remove('hidden');});
-  $('buyShieldBtn').addEventListener('click',()=>buySkill('shield'));$('buySlowBtn').addEventListener('click',()=>buySkill('slow'));
+  $('buyShieldBtn').addEventListener('click',()=>askBuySkill('shield'));$('buySlowBtn').addEventListener('click',()=>askBuySkill('slow'));\n  $('cancelBuyBtn').addEventListener('click',()=>{$('buyConfirmOverlay').classList.add('hidden');pendingBuyType=null;});\n  $('confirmBuyBtn').addEventListener('click',()=>{const type=pendingBuyType;pendingBuyType=null;$('buyConfirmOverlay').classList.add('hidden');if(type)buySkill(type);});
   $('exitBtn').addEventListener('click',backToTitle);
   $('pauseBtn').addEventListener('click',togglePause);
   window.addEventListener('resize',resize);
