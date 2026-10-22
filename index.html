@@ -23,7 +23,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 #mainOverlay .record-value{font-size:25px;font-weight:1000;margin-top:4px;font-variant-numeric:tabular-nums}
 #mainOverlay .home-gold{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin:4px 0 16px;border:1px solid #3a4563;border-radius:15px;background:#10172ad9}
 #mainOverlay .home-gold span{font-size:13px;font-weight:800;color:#aebbd8}
-#mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.difficulty{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:12px 5px;background:#101a2d;color:#b9c5e2;font-size:13px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
+#mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.difficulty{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:12px 5px;background:#101a2d;color:#b9c5e2;font-size:13px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
 #toast{position:fixed;top:25%;left:50%;transform:translate(-50%,-50%);font-weight:1000;font-size:clamp(22px,6vw,36px);text-shadow:0 4px 22px #000;pointer-events:none;opacity:0;white-space:nowrap;transition:opacity .24s ease,transform .24s ease;will-change:opacity,transform}
 .hidden{display:none!important}
 #hud.menu-hidden{display:none!important}
@@ -66,7 +66,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       <div class="record"><div class="record-label">이전 게임 점수</div><div class="record-value" id="homeLast">0</div></div>
       <div class="record"><div class="record-label">최고 점수</div><div class="record-value" id="homeBest">0</div></div>
     </div>
-    <div class="difficulty" aria-label="난이도 선택"><button class="mode" data-mode="easy">EASY</button><button class="mode selected" data-mode="normal">NORMAL</button><button class="mode" data-mode="hard">HARD</button></div>
+    <div class="difficulty" aria-label="난이도 선택"><button class="mode" data-mode="easy">EASY</button><button class="mode selected" data-mode="normal">NORMAL</button><button class="mode" data-mode="hard">HARD</button><button class="mode" data-mode="extreme">EXTREME</button></div>
     <button class="start" id="startBtn">게임 시작</button>
     <div class="small">터치 / 마우스 지원</div>
   </div>
@@ -101,7 +101,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null;
   let selectedMode='normal';
-  const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20}};
+  const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20},extreme:{spawn:.68,speed:1.22,extra:.34}};
+  let extremeBurst=0,extremeNext=0;
   let toastUntil=0;
   try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);gold=Number(localStorage.getItem('colorBallsGold')||0)}catch(e){}
   function resize(){
@@ -114,7 +115,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function chooseColor(){return rand(colors.length)}
   function reset(){
     canvas.style.display='block';
-    score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;
+    score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;extremeBurst=0;extremeNext=2.8+Math.random()*1.8;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
     updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
     running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();
@@ -148,7 +149,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     const aimX=player.x+(Math.random()-.5)*Math.min(W*.72,260);
     const aimY=player.y+(Math.random()-.5)*Math.min(H*.62,220);
     const angle=Math.atan2(aimY-y,aimX-x)+(Math.random()-.5)*(0.18+Math.min(.65,elapsed*.006));
-    const speed=(145+Math.min(210,elapsed*4.1)+Math.random()*55)*modeSettings[selectedMode].speed;
+    const speed=(145+Math.min(210,elapsed*4.1)+Math.random()*55)*modeSettings[selectedMode].speed*(selectedMode==='extreme'&&extremeBurst>0?1.28:1);
     const color=chooseColor();
     const kind=elapsed>9&&Math.random()<Math.min(.48,elapsed*.012)?rand(3):0;
     balls.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:9+Math.random()*5,color,kind,age:0,phase:Math.random()*Math.PI*2,turn:(Math.random()<.5?-1:1)*(45+Math.random()*95)});
@@ -217,10 +218,15 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function update(dt){
     const oldSeconds=Math.floor(elapsed);
     elapsed+=dt;
+    if(selectedMode==='extreme'){
+      extremeNext-=dt;
+      if(extremeNext<=0&&extremeBurst<=0){extremeBurst=.72;extremeNext=3.1+Math.random()*2.2;}
+      if(extremeBurst>0){extremeBurst=Math.max(0,extremeBurst-dt);for(const b of balls){b.vx*=1+1.05*dt;b.vy*=1+1.05*dt;}}
+    }else{extremeBurst=0;}
     score+=Math.floor(elapsed)-oldSeconds;
     invulnerable=Math.max(0,invulnerable-dt);
     updateHud();
-    const spawnInterval=Math.max(.22,(.82-elapsed*.009)*modeSettings[selectedMode].spawn);
+    const spawnInterval=Math.max(selectedMode==='extreme'?.14:.22,(.82-elapsed*.009)*modeSettings[selectedMode].spawn);
     spawnClock+=dt;
     while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(elapsed>24&&Math.random()<modeSettings[selectedMode].extra)spawnBall();}
     // Smoothly follow pointer position while preserving a little inertia.
