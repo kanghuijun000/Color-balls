@@ -23,7 +23,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 #mainOverlay .record-value{font-size:25px;font-weight:1000;margin-top:4px;font-variant-numeric:tabular-nums}
 #mainOverlay .home-gold{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin:4px 0 16px;border:1px solid #3a4563;border-radius:15px;background:#10172ad9}
 #mainOverlay .home-gold span{font-size:13px;font-weight:800;color:#aebbd8}
-#mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.homeActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:13px 5px;background:#101a2d;color:#b9c5e2;font-size:14px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
+#mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.homeActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:13px 5px;background:#101a2d;color:#b9c5e2;font-size:14px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}\n.shopItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid #2a3650;border-radius:15px;background:#10172ad9;margin-top:10px}.shopItemInfo{min-width:0;flex:1}.shopItemName{font-size:15px;font-weight:1000;margin-bottom:5px}.shopItemDesc{font-size:12px;line-height:1.5;color:#aebbd8}.buyBtn{flex:0 0 auto;min-width:105px;border:1px solid #52658b;border-radius:11px;background:#1a2943;color:#eaf2ff;padding:11px 8px;font-size:12px;font-weight:1000}.buyBtn:disabled{opacity:.48}.confirmText{font-size:14px;line-height:1.6;color:#c3cde6;margin:12px 0 18px}.confirmActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #skillButtons{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 18px);z-index:4;display:flex;flex-direction:column;gap:8px;pointer-events:auto}
 .skillButton{border:1px solid #52658b;border-radius:12px;background:#111b31ef;color:#eaf2ff;padding:10px 12px;font-size:12px;font-weight:900;min-width:118px;box-shadow:0 5px 18px #0006}
 #toast{position:fixed;top:25%;left:50%;transform:translate(-50%,-50%);font-weight:1000;font-size:clamp(22px,6vw,36px);text-shadow:0 4px 22px #000;pointer-events:none;opacity:0;white-space:nowrap;transition:opacity .24s ease,transform .24s ease;will-change:opacity,transform}
@@ -77,11 +77,25 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   <div class="card">
     <div class="eyebrow">COLOR-BALLS SHOP</div>
     <div class="title">상점</div>
-    <p class="desc">골드 30개로 스킬 1개를 구매해. 구매한 스킬은 게임 중 한 번 사용할 수 있어.</p>
+    <p class="desc">스킬은 종류별 최대 3개까지 보유할 수 있어. 사용하면 다음 사용까지 5초의 쿨타임이 있어.</p>
     <div class="home-gold"><span>보유 골드</span><strong id="shopGold">0</strong></div>
-    <div class="record"><div class="record-label">3초 무적</div><p class="desc">사용 후 3초 동안 공에 맞아도 생명이 줄지 않아.</p><button class="start" id="buyShieldBtn">구매 · 30 골드</button></div>
-    <div class="record" style="margin-top:12px"><div class="record-label">5초 슬로우</div><p class="desc">모든 공의 이동 속도를 5초 동안 50% 낮춰.</p><button class="start" id="buySlowBtn">구매 · 30 골드</button></div>
+    <div class="shopItem">
+      <div class="shopItemInfo"><div class="shopItemName">3초 무적</div><div class="shopItemDesc">사용 후 3초 동안 공에 맞아도 생명이 줄지 않아.<br>보유 <strong id="shieldOwned">0 / 3</strong></div></div>
+      <button class="buyBtn" id="buyShieldBtn">30 골드<br>구매</button>
+    </div>
+    <div class="shopItem">
+      <div class="shopItemInfo"><div class="shopItemName">5초 슬로우</div><div class="shopItemDesc">모든 공의 이동 속도를 5초 동안 50% 낮춰.<br>보유 <strong id="slowOwned">0 / 3</strong></div></div>
+      <button class="buyBtn" id="buySlowBtn">30 골드<br>구매</button>
+    </div>
     <button class="secondary" id="closeShopBtn">돌아가기</button>
+  </div>
+</div>
+<div class="overlay hidden" id="buyConfirmOverlay">
+  <div class="card">
+    <div class="eyebrow">PURCHASE CONFIRM</div>
+    <div class="title" id="confirmTitle">스킬 구매</div>
+    <p class="confirmText" id="confirmMessage">30 골드를 사용해 구매할까?</p>
+    <div class="confirmActions"><button class="secondary" id="cancelBuyBtn" style="margin-top:0">취소</button><button class="start" id="confirmBuyBtn">구매하기</button></div>
   </div>
 </div>
 <div id="skillButtons" class="hidden"></div>
@@ -117,7 +131,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let selectedMode='normal';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20},extreme:{spawn:.68,speed:1.22,extra:.34}};
   let extremeBurst=0,extremeNext=0;
-  let shieldSkills=0,slowSkills=0,slowTimer=0,lastSkillSignature='';
+  let shieldSkills=0,slowSkills=0,slowTimer=0,shieldCooldown=0,slowCooldown=0,lastSkillSignature='',pendingBuyType=null;
   let toastUntil=0;
   try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);gold=Number(localStorage.getItem('colorBallsGold')||0);shieldSkills=Number(localStorage.getItem('colorBallsShieldSkills')||0);slowSkills=Number(localStorage.getItem('colorBallsSlowSkills')||0)}catch(e){}
   function resize(){
@@ -232,9 +246,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     const signature=running+'|'+shieldSkills+'|'+slowSkills;
     if(signature===lastSkillSignature)return;
     lastSkillSignature=signature;box.innerHTML='';
-    if(shieldSkills>0){const b=document.createElement('button');b.className='skillButton';b.textContent='3초 무적 ('+shieldSkills+')';b.addEventListener('click',()=>useSkill('shield'));box.appendChild(b);}
-    if(slowSkills>0){const b=document.createElement('button');b.className='skillButton';b.textContent='5초 슬로우 ('+slowSkills+')';b.addEventListener('click',()=>useSkill('slow'));box.appendChild(b);}
-    box.classList.toggle('hidden',!running||(shieldSkills<=0&&slowSkills<=0));
+    if(shieldSkills>0){const b=document.createElement('button');b.className='skillButton';b.dataset.skill='shield';b.addEventListener('click',()=>useSkill('shield'));box.appendChild(b);}
+    if(slowSkills>0){const b=document.createElement('button');b.className='skillButton';b.dataset.skill='slow';b.addEventListener('click',()=>useSkill('slow'));box.appendChild(b);}
+    box.classList.toggle('hidden',!running||(shieldSkills<=0&&slowSkills<=0));updateSkillButtonLabels();
   }
   function useSkill(type){
     if(!running||paused)return;
@@ -258,7 +272,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function update(dt){
     const oldSeconds=Math.floor(elapsed);
     elapsed+=dt;
-    slowTimer=Math.max(0,slowTimer-dt);
+    slowTimer=Math.max(0,slowTimer-dt);shieldCooldown=Math.max(0,shieldCooldown-dt);slowCooldown=Math.max(0,slowCooldown-dt);updateSkillButtonLabels();
     if(selectedMode==='extreme'){
       extremeNext-=dt;
       if(extremeNext<=0&&extremeBurst<=0){extremeBurst=.72;extremeNext=3.1+Math.random()*2.2;}
