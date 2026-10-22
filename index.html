@@ -328,7 +328,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function beginResumeCountdown(){
     if(!running)return;
     $('pauseOverlay').classList.add('hidden');
-    paused=false;countdown=3;last=performance.now();
+    paused=false;pointerDown=false;pointerId=null;countdown=3;last=performance.now();
     $('pauseBtn').textContent='Ⅱ';
     updateSkillButtonLabels();
   }
@@ -412,7 +412,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     draw();requestAnimationFrame(frame);
   }
   function pointerMove(e){
-    if(!player||!running||paused)return;
+    if(!player||!running||paused||countdown>0)return;
     if(e.pointerType==='mouse'){
       const rect=canvas.getBoundingClientRect();
       player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
@@ -423,7 +423,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
   }
   canvas.addEventListener('pointerdown',e=>{
-    if(!running||paused)return;
+    if(!running||paused||countdown>0)return;
     pointerDown=true;pointerId=e.pointerId;
     if(canvas.setPointerCapture)canvas.setPointerCapture(e.pointerId);
     pointerMove(e);
