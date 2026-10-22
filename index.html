@@ -24,6 +24,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 #mainOverlay .home-gold{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin:4px 0 16px;border:1px solid #3a4563;border-radius:15px;background:#10172ad9}
 #mainOverlay .home-gold span{font-size:13px;font-weight:800;color:#aebbd8}
 #mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.difficulty{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:12px 5px;background:#101a2d;color:#b9c5e2;font-size:13px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
+#skillButtons{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 18px);z-index:4;display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+.skillButton{border:1px solid #52658b;border-radius:12px;background:#111b31ef;color:#eaf2ff;padding:10px 12px;font-size:12px;font-weight:900;min-width:118px;box-shadow:0 5px 18px #0006}
 #toast{position:fixed;top:25%;left:50%;transform:translate(-50%,-50%);font-weight:1000;font-size:clamp(22px,6vw,36px);text-shadow:0 4px 22px #000;pointer-events:none;opacity:0;white-space:nowrap;transition:opacity .24s ease,transform .24s ease;will-change:opacity,transform}
 .hidden{display:none!important}
 #hud.menu-hidden{display:none!important}
@@ -68,9 +70,22 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     </div>
     <div class="difficulty" aria-label="난이도 선택"><button class="mode" data-mode="easy">EASY</button><button class="mode selected" data-mode="normal">NORMAL</button><button class="mode" data-mode="hard">HARD</button><button class="mode" data-mode="extreme">EXTREME</button></div>
     <button class="start" id="startBtn">게임 시작</button>
+    <button class="secondary" id="openShopBtn">상점</button>
     <div class="small">터치 / 마우스 지원</div>
   </div>
 </div>
+<div class="overlay hidden" id="shopOverlay">
+  <div class="card">
+    <div class="eyebrow">COLOR-BALLS SHOP</div>
+    <div class="title">상점</div>
+    <p class="desc">골드 30개로 스킬 1개를 구매해. 구매한 스킬은 게임 중 한 번 사용할 수 있어.</p>
+    <div class="home-gold"><span>보유 골드</span><strong id="shopGold">0</strong></div>
+    <div class="record"><div class="record-label">3초 무적</div><p class="desc">사용 후 3초 동안 공에 맞아도 생명이 줄지 않아.</p><button class="start" id="buyShieldBtn">구매 · 30 골드</button></div>
+    <div class="record" style="margin-top:12px"><div class="record-label">5초 슬로우</div><p class="desc">모든 공의 이동 속도를 5초 동안 50% 낮춰.</p><button class="start" id="buySlowBtn">구매 · 30 골드</button></div>
+    <button class="secondary" id="closeShopBtn">돌아가기</button>
+  </div>
+</div>
+<div id="skillButtons" class="hidden"></div>
 <div class="overlay hidden" id="endOverlay">
   <div class="card">
     <div class="eyebrow" id="endEyebrow">RUN ENDED</div>
@@ -103,8 +118,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let selectedMode='normal';
   const modeSettings={easy:{spawn:1.22,speed:.82,extra:.10},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.96,speed:1.06,extra:.20},extreme:{spawn:.68,speed:1.22,extra:.34}};
   let extremeBurst=0,extremeNext=0;
+  let shieldSkills=0,slowSkills=0,slowTimer=0,lastSkillSignature='';
   let toastUntil=0;
-  try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);gold=Number(localStorage.getItem('colorBallsGold')||0)}catch(e){}
+  try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);gold=Number(localStorage.getItem('colorBallsGold')||0);shieldSkills=Number(localStorage.getItem('colorBallsShieldSkills')||0);slowSkills=Number(localStorage.getItem('colorBallsSlowSkills')||0)}catch(e){}
   function resize(){
     dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
     canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
@@ -115,16 +131,19 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function chooseColor(){return rand(colors.length)}
   function reset(){
     canvas.style.display='block';
+    slowTimer=0;$('shopOverlay').classList.add('hidden');
     score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;extremeBurst=0;extremeNext=2.8+Math.random()*1.8;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
     updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
-    running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();
+    running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();updateHud();
     announce('GO!',player.color);
   }
   function updateHud(){
     $('homeBest').textContent=best.toLocaleString();
     $('homeLast').textContent=lastScore.toLocaleString();
     $('homeGold').textContent=gold.toLocaleString();
+    $('shopGold').textContent=gold.toLocaleString();
+    renderSkillButtons();
     $('runGold').textContent=runGold.toLocaleString();
     $('gameDifficulty').textContent=selectedMode.toUpperCase();
     $('score').textContent=score.toLocaleString();
@@ -185,7 +204,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
   }
   function gameOver(){
-    running=false;paused=false;$('hud').classList.add('menu-hidden');
+    running=false;paused=false;$('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
     const isNewBest=score>best;
     lastScore=score;
     best=Math.max(best,score);
@@ -209,6 +228,28 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('homeBest').textContent=best.toLocaleString();$('homeLast').textContent=lastScore.toLocaleString();
     $('toast').style.opacity='0';
   }
+  function renderSkillButtons(){
+    const box=$('skillButtons');
+    const signature=running+'|'+shieldSkills+'|'+slowSkills;
+    if(signature===lastSkillSignature)return;
+    lastSkillSignature=signature;box.innerHTML='';
+    if(shieldSkills>0){const b=document.createElement('button');b.className='skillButton';b.textContent='3초 무적 ('+shieldSkills+')';b.addEventListener('click',()=>useSkill('shield'));box.appendChild(b);}
+    if(slowSkills>0){const b=document.createElement('button');b.className='skillButton';b.textContent='5초 슬로우 ('+slowSkills+')';b.addEventListener('click',()=>useSkill('slow'));box.appendChild(b);}
+    box.classList.toggle('hidden',!running||(shieldSkills<=0&&slowSkills<=0));
+  }
+  function useSkill(type){
+    if(!running||paused)return;
+    if(type==='shield'&&shieldSkills>0){shieldSkills--;invulnerable=3;try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills))}catch(e){}announce('3초 무적!',0);}
+    else if(type==='slow'&&slowSkills>0){slowSkills--;slowTimer=5;try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills))}catch(e){}announce('5초 슬로우!',3);}
+    updateHud();
+  }
+  function buySkill(type){
+    if(gold<30){announce('골드가 부족해');return;}
+    gold-=30;
+    if(type==='shield'){shieldSkills++;try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}}
+    else{slowSkills++;try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}}
+    updateHud();announce('스킬 구매 완료');
+  }
   function togglePause(){
     if(!running)return;
     paused=!paused;$('pauseBtn').textContent=paused?'▶':'Ⅱ';
@@ -218,6 +259,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function update(dt){
     const oldSeconds=Math.floor(elapsed);
     elapsed+=dt;
+    slowTimer=Math.max(0,slowTimer-dt);
     if(selectedMode==='extreme'){
       extremeNext-=dt;
       if(extremeNext<=0&&extremeBurst<=0){extremeBurst=.72;extremeNext=3.1+Math.random()*2.2;}
@@ -238,7 +280,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       if(b.kind===1){b.phase+=dt*2.3;b.vx+=Math.sin(b.phase)*55*dt;b.vy+=Math.cos(b.phase*.7)*35*dt;}
       if(b.kind===2&&b.age>.7){const a=Math.atan2(player.y-b.y,player.x-b.x);b.vx+=Math.cos(a)*65*dt;b.vy+=Math.sin(a)*65*dt;}
       if(b.kind===3){b.phase+=dt*2.8;b.vx+=Math.cos(b.phase)*b.turn*dt;b.vy+=Math.sin(b.phase)*b.turn*dt;}
-      b.x+=b.vx*dt;b.y+=b.vy*dt;
+      const speedFactor=slowTimer>0?.5:1;
+      b.x+=b.vx*dt*speedFactor;b.y+=b.vy*dt*speedFactor;
       const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
       if(dist<b.r+player.r){balls.splice(i,1);hitBall(b);if(!running)return;continue;}
       if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)balls.splice(i,1);
@@ -310,6 +353,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     document.querySelectorAll('.mode').forEach(item=>item.classList.toggle('selected',item===btn));
   }));
   $('startBtn').addEventListener('click',reset);$('retryBtn').addEventListener('click',reset);
+  $('openShopBtn').addEventListener('click',()=>{$('shopGold').textContent=gold.toLocaleString();$('mainOverlay').classList.add('hidden');$('shopOverlay').classList.remove('hidden');});
+  $('closeShopBtn').addEventListener('click',()=>{$('shopOverlay').classList.add('hidden');$('mainOverlay').classList.remove('hidden');});
+  $('buyShieldBtn').addEventListener('click',()=>buySkill('shield'));$('buySlowBtn').addEventListener('click',()=>buySkill('slow'));
   $('exitBtn').addEventListener('click',backToTitle);
   $('pauseBtn').addEventListener('click',togglePause);
   window.addEventListener('resize',resize);
