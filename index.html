@@ -152,7 +152,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function rand(n){return Math.floor(Math.random()*n)}
   function chooseColor(){return rand(colors.length)}
   function reset(){
-    canvas.style.display='block';
+    countdown=0;$('pauseOverlay').classList.add('hidden');$('buyConfirmOverlay').classList.add('hidden');canvas.style.display='block';
     slowTimer=0;$('shopOverlay').classList.add('hidden');
     score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;extremeBurst=0;extremeNext=2.8+Math.random()*1.8;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
@@ -402,11 +402,12 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       ctx.strokeStyle='#ffffffcc';ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x,player.y,player.r+5,0,Math.PI*2);ctx.stroke();
     }
     ctx.restore();
+    if(running&&countdown>0){ctx.save();ctx.fillStyle='#ffffff';ctx.font='1000 '+Math.min(100,W*.22)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.fillText(String(Math.ceil(countdown)),W/2,H/2);ctx.restore();}
     if(performance.now()>toastUntil){$('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   function frame(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
-    if(running&&!paused)update(dt);
+    if(running&&!paused){if(countdown>0){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
     draw();requestAnimationFrame(frame);
   }
   function pointerMove(e){
