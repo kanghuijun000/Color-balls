@@ -169,7 +169,6 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
   const modeSettings={easy:{spawn:1.30,speed:.80,extra:.08},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.90,speed:1.10,extra:.22},extreme:{spawn:.52,speed:1.30,extra:.40}};
-  let extremeBurst=0,extremeNext=0;
   let shieldSkills=0,slowSkills=0,slowTimer=0,shieldCooldown=0,slowCooldown=0,lastSkillSignature='',pendingBuyType=null;
   let toastUntil=0;
   try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);gold=Number(localStorage.getItem('colorBallsGold')||0);shieldSkills=Number(localStorage.getItem('colorBallsShieldSkills')||0);slowSkills=Number(localStorage.getItem('colorBallsSlowSkills')||0)}catch(e){}
@@ -184,7 +183,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function reset(){
     countdown=0;$('pauseOverlay').classList.add('hidden');$('buyConfirmOverlay').classList.add('hidden');canvas.style.display='block';
     slowTimer=0;$('shopOverlay').classList.add('hidden');
-    score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;extremeBurst=0;extremeNext=2.8+Math.random()*1.8;
+    score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
     updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
     running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();updateHud();
@@ -217,8 +216,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     const aimX=player.x+(Math.random()-.5)*Math.min(W*.72,260);
     const aimY=player.y+(Math.random()-.5)*Math.min(H*.62,220);
     const angle=Math.atan2(aimY-y,aimX-x)+(Math.random()-.5)*(0.18+Math.min(.65,elapsed*.006));
-    const timeProgress=Math.min(1,elapsed/30);
-    const speed=(145+Math.min(210,elapsed*4.1)+Math.random()*55)*modeSettings[selectedMode].speed*(1+.25*timeProgress);
+    const ongoingGrowth=Math.pow(1+elapsed/45,.18);
+    const speed=(145+Math.min(210,elapsed*4.1)+Math.random()*55)*modeSettings[selectedMode].speed*ongoingGrowth;
     const color=chooseColor();
     const kind=elapsed>9&&Math.random()<Math.min(.48,elapsed*.012)?rand(3):0;
     balls.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:9+Math.random()*5,color,kind,age:0,phase:Math.random()*Math.PI*2,turn:(Math.random()<.5?-1:1)*(45+Math.random()*95)});
@@ -377,14 +376,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     const oldSeconds=Math.floor(elapsed);
     elapsed+=dt;
     slowTimer=Math.max(0,slowTimer-dt);shieldCooldown=Math.max(0,shieldCooldown-dt);slowCooldown=Math.max(0,slowCooldown-dt);updateSkillButtonLabels();
-    extremeBurst=0;
     score+=Math.floor(elapsed)-oldSeconds;
     invulnerable=Math.max(0,invulnerable-dt);
     updateHud();
-    const timeProgress=Math.min(1,elapsed/30);
-    const spawnInterval=Math.max(.14,.82*modeSettings[selectedMode].spawn*(1-.28*timeProgress));
+    const spawnGrowth=Math.pow(1+elapsed/40,.22);
+    const spawnInterval=Math.max(.075,.82*modeSettings[selectedMode].spawn/spawnGrowth);
+    const extraChance=modeSettings[selectedMode].extra+(1-modeSettings[selectedMode].extra)*(elapsed/(elapsed+90));
     spawnClock+=dt;
-    while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(Math.random()<modeSettings[selectedMode].extra*timeProgress)spawnBall();}
+    while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(Math.random()<extraChance)spawnBall();}
     // Smoothly follow pointer position while preserving a little inertia.
     player.x=Math.max(player.r,Math.min(W-player.r,player.x));
     player.y=Math.max(player.r+52,Math.min(H-player.r-28,player.y));
