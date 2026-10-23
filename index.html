@@ -250,13 +250,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   }
   function renderSkillButtons(){
     const box=$('skillButtons');
-    const signature=running+'|'+shieldSkills+'|'+slowSkills;
+    const signature='skills-always-visible';
     if(signature!==lastSkillSignature){
       lastSkillSignature=signature;box.innerHTML='';
-      if(shieldSkills>0){const button=document.createElement('button');button.className='skillButton';button.dataset.skill='shield';button.setAttribute('aria-label','3초 무적 스킬 사용');button.title='3초 무적';button.innerHTML='<span class="skillIcon">🛡️</span><span class="skillCount"></span><span class="skillKey">1</span><span class="skillCooldown hidden"></span>';button.addEventListener('click',()=>useSkill('shield'));box.appendChild(button);}
-      if(slowSkills>0){const button=document.createElement('button');button.className='skillButton';button.dataset.skill='slow';button.setAttribute('aria-label','5초 슬로우 스킬 사용');button.title='5초 슬로우';button.innerHTML='<span class="skillIcon">🐢</span><span class="skillCount"></span><span class="skillKey">2</span><span class="skillCooldown hidden"></span>';button.addEventListener('click',()=>useSkill('slow'));box.appendChild(button);}
+      {const button=document.createElement('button');button.className='skillButton';button.dataset.skill='shield';button.setAttribute('aria-label','3초 무적 스킬 사용');button.title='3초 무적';button.innerHTML='<span class="skillIcon">🛡️</span><span class="skillCount"></span><span class="skillCooldown hidden"></span>';button.addEventListener('click',()=>useSkill('shield'));box.appendChild(button);}
+      {const button=document.createElement('button');button.className='skillButton';button.dataset.skill='slow';button.setAttribute('aria-label','5초 슬로우 스킬 사용');button.title='5초 슬로우';button.innerHTML='<span class="skillIcon">🐢</span><span class="skillCount"></span><span class="skillCooldown hidden"></span>';button.addEventListener('click',()=>useSkill('slow'));box.appendChild(button);}
     }
-    box.classList.toggle('hidden',!running||(shieldSkills<=0&&slowSkills<=0));
+    box.classList.toggle('hidden',!running);
     updateSkillButtonLabels();
   }
   function updateSkillButtonLabels(){
@@ -270,7 +270,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       const cooldownLabel=button.querySelector('.skillCooldown');
       cooldownLabel.textContent=cooldown>0?cooldown.toFixed(1):'';
       cooldownLabel.classList.toggle('hidden',cooldown<=0);
-      button.disabled=cooldown>0||!running||paused||countdown>0;
+      button.disabled=count<=0||cooldown>0||!running||paused||countdown>0;
     });
   }
   function useSkill(type){
