@@ -467,7 +467,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function refreshModeButton(){ $('cycleModeBtn').textContent=selectedMode.toUpperCase(); }
   $('cycleModeBtn').addEventListener('click',()=>{const idx=modeCycle.indexOf(selectedMode);selectedMode=modeCycle[(idx+1)%modeCycle.length];refreshModeButton();});
   $('startBtn').addEventListener('click',reset);$('retryBtn').addEventListener('click',reset);
-  $('openManualBtn').addEventListener('click',()=>{$('manualOverlay').classList.remove('hidden');});\n  $('closeManualBtn').addEventListener('click',()=>{$('manualOverlay').classList.add('hidden');});\n  $('openShopBtn').addEventListener('click',()=>{refreshShop();$('mainOverlay').classList.add('hidden');$('shopOverlay').classList.remove('hidden');});
+  $('openManualBtn').addEventListener('click',()=>{$('manualOverlay').classList.remove('hidden');});
+  $('closeManualBtn').addEventListener('click',()=>{$('manualOverlay').classList.add('hidden');});
+  $('openShopBtn').addEventListener('click',()=>{refreshShop();$('mainOverlay').classList.add('hidden');$('shopOverlay').classList.remove('hidden');});
   $('closeShopBtn').addEventListener('click',()=>{$('shopOverlay').classList.add('hidden');$('mainOverlay').classList.remove('hidden');});
   $('buyShieldBtn').addEventListener('click',()=>askBuySkill('shield'));$('buySlowBtn').addEventListener('click',()=>askBuySkill('slow'));
   $('cancelBuyBtn').addEventListener('click',()=>{$('buyConfirmOverlay').classList.add('hidden');pendingBuyType=null;});
