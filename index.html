@@ -233,7 +233,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let cbMultiplayerActive=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0;
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
-    if(!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
+    if(cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
     cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
     reset();
     if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
