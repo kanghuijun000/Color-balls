@@ -589,7 +589,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     {id:'violet',hex:'#a78bff',name:'VIOLET'},
     {id:'lime',hex:'#9cff7b',name:'LIME'}
   ];
-  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null;
+  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null;
   let cbMode='coop',cbDifficulty='normal',cbBusy=false;
   const cbEl=id=>document.getElementById(id);
   const cbModeNames={coop:'협동 생존',competitive:'최후의 생존자'};
@@ -670,6 +670,21 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       cbRoom=payload.new;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbRenderLobby();
       if(cbRoom.status==='playing'){cbStartGameClient();}
     }).subscribe();
+    // Realtime 이벤트가 일부 기기에서 누락되어도 방 상태를 확인해 게임을 시작하도록 보완
+    if(cbRoomPollTimer)clearInterval(cbRoomPollTimer);
+    cbRoomPollTimer=setInterval(async()=>{
+      if(!cbRoom||!cbClient||cbMultiplayerActive)return;
+      try{
+        const check=await cbClient.from('cb_rooms').select('*').eq('id',cbRoom.id).maybeSingle();
+        if(check.error||!check.data)return;
+        cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
+        if(cbRoom.status==='playing'){
+          await cbRefreshPlayers();
+          cbStartGameClient();
+        }else cbRenderLobby();
+      }catch(e){}
+    },1000);
+    if(cbRoom.status==='playing')cbStartGameClient();
   }
   async function cbCreateRoom(){
     if(cbBusy)return;cbBusy=true;cbMessage('방을 만들고 있어…');
