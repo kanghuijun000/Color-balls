@@ -289,7 +289,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           cbFinishMultiplayerMatch('모든 참가자가 동시에 탈락했어.');
           return;
         }
-        cbAlive=true;running=true;invulnerable=3;cbLast=performance.now();
+        cbAlive=true;running=true;invulnerable=3;last=performance.now();
         cbLastStatusSent='playing';cbBroadcast('revive',{player_id:cbUser?.id});
         cbRenderLivesHud();cbMessage('부활! 3초 동안 무적이야.',true);
       },5000);
