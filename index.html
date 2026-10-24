@@ -255,30 +255,46 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
   }
   let cbReturningAfterGame=false;
+  async function cbMarkMyGameFinished(){
+    if(!cbRoom||!cbMyPlayer||!cbClient)return;
+    try{
+      const result=await cbClient.from('cb_players').update({status:'finished'}).eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(result.error)throw result.error;
+      cbMyPlayer.status='finished';await cbRefreshPlayers();
+    }catch(e){cbMessage('게임 결과 상태 동기화 실패: '+(e.message||'연결을 확인해 줘.'),true);}
+  }
   async function cbReturnToLobbyAfterGame(){
-    if(cbReturningAfterGame)return;
+    if(cbReturningAfterGame||!cbRoom||!cbMyPlayer)return;
     cbReturningAfterGame=true;
-    const roomId=cbRoom?.id;
-    const wasActive=cbMultiplayerActive;
-    cbGameSessionStarted=false;
-    cbStopMultiplayer();
-    $('endOverlay').classList.add('hidden');
-    $('multiOverlay').classList.remove('hidden');
-    $('hud').classList.add('menu-hidden');
-    $('skillButtons').classList.add('hidden');
-    if(cbRoom&&cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'){
-      try{
-        const result=await cbClient.from('cb_rooms').update({status:'waiting'}).eq('id',roomId).eq('host_id',cbUser.id);
-        if(result.error)throw result.error;
-        if(cbRoom?.id===roomId)cbRoom.status='waiting';
-      }catch(e){cbMessage('대기실 복귀 동기화 실패: '+(e.message||'다시 시도해 줘.'),true);}
-    }
-    if(cbRoom?.id===roomId){
-      await cbRefreshPlayers().catch(()=>{});
+    const roomId=cbRoom.id;
+    try{
+      // 나가기 버튼을 눌렀을 때만 대기실 복귀 처리
+      const result=await cbClient.from('cb_players').update({status:'waiting'}).eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(result.error)throw result.error;
+      cbMyPlayer.status='waiting';
+      cbGameSessionStarted=false;cbStopMultiplayer();
+      $('endOverlay').classList.add('hidden');
+      $('retryBtn').classList.remove('hidden');$('exitBtn').textContent='나가기';
+      $('multiOverlay').classList.remove('hidden');
+      $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+      await cbRefreshPlayers();
       cbShowLobby(true);cbRenderLobby();
-      cbMessage('게임이 끝났어. 방장이 시작 버튼을 누르면 모두 함께 다시 시작해.',true);
-    }
-    cbReturningAfterGame=false;
+      cbMessage('대기실로 돌아왔어. 모든 참가자가 돌아오면 방장이 게임을 시작할 수 있어.',true);
+    }catch(e){cbMessage('대기실 복귀 실패: '+(e.message||'다시 눌러 줘.'),true);}
+    finally{cbReturningAfterGame=false;}
+  }
+  async function cbKickPlayer(playerId){
+    if(!cbRoom||!cbUser||cbUser.id!==cbRoom.host_id||playerId===cbRoom.host_id||cbBusy)return;
+    const target=cbPlayers.find(p=>p.player_id===playerId);
+    if(!target)return;
+    if(!confirm((target.player_name||'참가자')+'님을 방에서 추방할까? 방 코드를 알면 다시 참가할 수 있어.'))return;
+    cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_players').delete().eq('room_id',cbRoom.id).eq('player_id',playerId);
+      if(result.error)throw result.error;
+      await cbRefreshPlayers();cbMessage('참가자를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+    }catch(e){cbMessage('추방 실패: '+(e.message||'다시 시도해 줘.'),true);}
+    finally{cbBusy=false;cbRenderLobby();}
   }
   function cbStopMultiplayer(keepHud=false){
     cbMultiplayerActive=false;cbRemotePlayers={};
@@ -403,10 +419,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(cbMultiplayerActive){
       cbRenderLivesHud();
       $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
-      // 멀티 게임은 개인 결과 화면에 머물지 않고 같은 방의 대기실로 복귀한다.
-      // 새 게임은 방장이 시작 버튼을 다시 눌러야만 시작된다.
-      $('endOverlay').classList.add('hidden');
-      cbReturnToLobbyAfterGame();
+      $('finalTime').textContent=Math.floor(elapsed)+'초';
+      $('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
+      $('finalScore').textContent='—';$('bestScore').textContent='—';
+      $('endEyebrow').textContent='MULTIPLAYER RESULT';$('endTitle').textContent='게임 종료';
+      $('retryBtn').classList.add('hidden');
+      $('exitBtn').textContent='대기실로 돌아가기';
+      $('endOverlay').classList.remove('hidden');
+      cbMarkMyGameFinished();
       return;
     }
     $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
@@ -690,7 +710,11 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       const dot=document.createElement('span');dot.className='multiDot';dot.style.background=color.hex;dot.style.color=color.hex;
       const name=document.createElement('span');name.className='multiPlayerName';name.textContent=p.player_name+(p.player_id===cbRoom.host_id?' (방장)':'');
       const meta=document.createElement('span');meta.className='multiPlayerMeta';meta.textContent=p.player_id===cbUser?.id?'나':p.status==='spectating'?'관전 중':'참가 중';
-      row.append(dot,name,meta);cbEl('multiPlayerList').appendChild(row);
+      row.append(dot,name,meta);
+      if(cbUser?.id===cbRoom.host_id&&p.player_id!==cbRoom.host_id){
+        const kick=document.createElement('button');kick.className='multiBtn';kick.textContent='추방';kick.style.padding='6px 9px';kick.style.fontSize='11px';kick.addEventListener('click',()=>cbKickPlayer(p.player_id));row.appendChild(kick);
+      }
+      cbEl('multiPlayerList').appendChild(row);
     });
     const isHost=cbUser?.id===cbRoom.host_id;
     cbEl('hostOnlyText').textContent=isHost?'방장인 너는 모드와 난이도를 바꿀 수 있어.':'방장이 모드와 난이도를 선택해.';
@@ -701,6 +725,9 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     cbEl('competitiveModeBtn').disabled=!isHost||cbRoom.status!=='waiting';
     cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.disabled=!isHost||cbRoom.status!=='waiting');
     cbEl('startMultiBtn').classList.toggle('hidden',!isHost||cbRoom.status!=='waiting');
+    const ready=cbPlayers.filter(p=>p.status==='waiting').length;
+    cbEl('startMultiBtn').textContent=cbPlayers.length>0&&ready<cbPlayers.length?'대기실 복귀 대기 ('+ready+'/'+cbPlayers.length+')':'게임 시작';
+    cbEl('startMultiBtn').disabled=!isHost||cbRoom.status!=='waiting'||cbPlayers.length<2||ready!==cbPlayers.length;
     cbEl('leaveRoomBtn').textContent=cbRoom.status==='playing'?'대기실 나가기':'대기실 나가기';
     cbPaintChoices();
   }
@@ -754,6 +781,12 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
         if(!cbRoom||cbRoom.id!==roomId)return;
         cbPlayers=people.data||[];
         cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+        if(!cbMyPlayer){
+          cbStopMultiplayer();cbGameSessionStarted=false;cbRoom=null;cbPlayers=[];
+          cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
+          cbMessage('방장이 너를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+          return;
+        }
         cbRenderLobby();
         if(cbRoom.status==='playing')cbStartGameClient();
       }catch(e){
@@ -822,11 +855,17 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   async function cbStartRoom(){
     if(!cbRoom||cbUser.id!==cbRoom.host_id||cbBusy)return;
+    if(cbRoom.status!=='waiting'){cbMessage('현재는 게임을 시작할 수 없어.',true);return;}
     if(cbPlayers.length<2){cbMessage('친구가 한 명 이상 참가해야 시작할 수 있어.',true);return;}
+    const notReady=cbPlayers.filter(p=>p.status!=='waiting');
+    if(notReady.length){cbMessage('모든 참가자가 결과창에서 대기실로 돌아와야 시작할 수 있어.',true);return;}
     cbBusy=true;
     try{
       const result=await cbClient.from('cb_rooms').update({status:'playing'}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
-      if(result.error)throw result.error;cbGameSessionStarted=false;cbRoom.status='playing';cbRenderLobby();cbStartGameClient();
+      if(result.error)throw result.error;
+      const resetPlayers=await cbClient.from('cb_players').update({status:'playing'}).eq('room_id',cbRoom.id);
+      if(resetPlayers.error)throw resetPlayers.error;
+      cbGameSessionStarted=false;cbRoom.status='playing';cbRenderLobby();cbStartGameClient();
     }catch(e){cbMessage('게임 시작 실패: '+e.message,true);}
     finally{cbBusy=false;cbRenderLobby();}
   }
@@ -877,7 +916,11 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   $('buyShieldBtn').addEventListener('click',()=>askBuySkill('shield'));$('buySlowBtn').addEventListener('click',()=>askBuySkill('slow'));
   $('cancelBuyBtn').addEventListener('click',()=>{$('buyConfirmOverlay').classList.add('hidden');pendingBuyType=null;});
   $('confirmBuyBtn').addEventListener('click',()=>{const type=pendingBuyType;pendingBuyType=null;$('buyConfirmOverlay').classList.add('hidden');if(type)buySkill(type);});
-  $('exitBtn').addEventListener('click',backToTitle);
+  $('exitBtn').addEventListener('click',()=>{
+    if(cbMultiplayerActive&&cbRoom){cbReturnToLobbyAfterGame();return;}
+    $('retryBtn').classList.remove('hidden');$('exitBtn').textContent='나가기';
+    backToTitle();
+  });
   $('pauseBtn').addEventListener('click',togglePause);
   // Desktop shortcuts: 1 uses the first owned skill, 2 the second.
   window.addEventListener('keydown',e=>{
