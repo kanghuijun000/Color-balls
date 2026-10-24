@@ -254,6 +254,32 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
     cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
   }
+  let cbReturningAfterGame=false;
+  async function cbReturnToLobbyAfterGame(){
+    if(cbReturningAfterGame)return;
+    cbReturningAfterGame=true;
+    const roomId=cbRoom?.id;
+    const wasActive=cbMultiplayerActive;
+    cbGameSessionStarted=false;
+    cbStopMultiplayer();
+    $('endOverlay').classList.add('hidden');
+    $('multiOverlay').classList.remove('hidden');
+    $('hud').classList.add('menu-hidden');
+    $('skillButtons').classList.add('hidden');
+    if(cbRoom&&cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'){
+      try{
+        const result=await cbClient.from('cb_rooms').update({status:'waiting'}).eq('id',roomId).eq('host_id',cbUser.id);
+        if(result.error)throw result.error;
+        if(cbRoom?.id===roomId)cbRoom.status='waiting';
+      }catch(e){cbMessage('대기실 복귀 동기화 실패: '+(e.message||'다시 시도해 줘.'),true);}
+    }
+    if(cbRoom?.id===roomId){
+      await cbRefreshPlayers().catch(()=>{});
+      cbShowLobby(true);cbRenderLobby();
+      cbMessage('게임이 끝났어. 방장이 시작 버튼을 누르면 모두 함께 다시 시작해.',true);
+    }
+    cbReturningAfterGame=false;
+  }
   function cbStopMultiplayer(keepHud=false){
     cbMultiplayerActive=false;cbRemotePlayers={};
     if(cbGameChannel){cbClient.removeChannel(cbGameChannel);cbGameChannel=null;}
@@ -377,9 +403,11 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(cbMultiplayerActive){
       cbRenderLivesHud();
       $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
-      $('finalTime').textContent=Math.floor(elapsed)+'초';$('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
-      $('finalScore').textContent='—';$('bestScore').textContent='—';$('endEyebrow').textContent='MULTIPLAYER';$('endTitle').textContent='탈락';
-      $('endOverlay').classList.remove('hidden');return;
+      // 멀티 게임은 개인 결과 화면에 머물지 않고 같은 방의 대기실로 복귀한다.
+      // 새 게임은 방장이 시작 버튼을 다시 눌러야만 시작된다.
+      $('endOverlay').classList.add('hidden');
+      cbReturnToLobbyAfterGame();
+      return;
     }
     $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
     const isNewBest=score>best;
@@ -712,7 +740,14 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
           return;
         }
         if(!cbRoom||cbRoom.id!==roomId)return;
+        const previousRoomStatus=cbRoom.status;
         cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
+        if(previousRoomStatus==='playing'&&cbRoom.status==='waiting'&&cbMultiplayerActive){
+          cbGameSessionStarted=false;cbStopMultiplayer();
+          $('endOverlay').classList.add('hidden');$('multiOverlay').classList.remove('hidden');
+          $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+          cbShowLobby(true);
+        }
         // 참가자 목록을 매번 다시 읽어 인원수/색상/참가 상태를 맞춘다.
         const people=await cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true});
         if(people.error)throw people.error;
@@ -791,7 +826,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     cbBusy=true;
     try{
       const result=await cbClient.from('cb_rooms').update({status:'playing'}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
-      if(result.error)throw result.error;cbRoom.status='playing';cbRenderLobby();cbStartGameClient();
+      if(result.error)throw result.error;cbGameSessionStarted=false;cbRoom.status='playing';cbRenderLobby();cbStartGameClient();
     }catch(e){cbMessage('게임 시작 실패: '+e.message,true);}
     finally{cbBusy=false;cbRenderLobby();}
   }
