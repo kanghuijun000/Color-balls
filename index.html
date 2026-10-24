@@ -685,6 +685,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     cbRenderLobby();if(cbMultiplayerActive)cbRenderLivesHud();
   }
   async function cbLoadRoom(roomId){
+    if(cbRoom?.id!==roomId)cbGameSessionStarted=false;
     const result=await cbClient.from('cb_rooms').select('*').eq('id',roomId).single();
     if(result.error)throw result.error;
     cbRoom=result.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
