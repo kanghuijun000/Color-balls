@@ -65,7 +65,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 .multiColorRow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px}
 .multiColor{width:40px;height:40px;border:3px solid #ffffff24;border-radius:50%;box-shadow:0 0 10px currentColor}
 .multiColor:disabled{opacity:.22;filter:grayscale(1)}
-.multiNotice{font-size:12px;line-height:1.5;color:#aebbd8;margin:8px 0}
+.cbLivesHud{position:fixed;z-index:20;top:54px;left:50%;transform:translateX(-50%);display:flex;gap:8px;max-width:96vw;overflow-x:auto;padding:6px 10px;border:1px solid #ffffff22;border-radius:14px;background:#0b1024dd;backdrop-filter:blur(8px);pointer-events:none}.cbLivesHud.hidden{display:none}.cbLifeItem{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px;font-weight:700;color:#eaf1ff}.cbLifeHeart{font-size:19px;line-height:1}.multiNotice{font-size:12px;line-height:1.5;color:#aebbd8;margin:8px 0}
 .multiSection{border:1px solid #2a3650;border-radius:14px;background:#10172ad9;padding:13px;margin:12px 0}
 
 </style>
@@ -87,6 +87,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   </div>
 
 </div>
+<div id="cbLivesHud" class="cbLivesHud hidden" aria-label="플레이어 목숨"></div>
 <div id="toast"></div>
 <div class="overlay" id="mainOverlay">
   <button class="manualOpen" id="openManualBtn" type="button">설명서</button>
@@ -230,34 +231,49 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
-  let cbMultiplayerActive=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0;
+  let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0;
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
-    if(cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
-    cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
-    reset();
+    if(cbGameSessionStarted||cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
+    cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
+    reset();lives=1;updateHud();
     if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
     score=0;combo=0;runGold=0;gold=gold;updateHud();
     $('score').parentElement.parentElement.classList.add('hidden');
     $('centerStats').classList.add('hidden');
     $('gameDifficulty').textContent=cbModeNames[cbRoom.mode]+' · '+selectedMode.toUpperCase();
-    $('multiOverlay').classList.add('hidden');
+    $('multiOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');$('skillButtons').classList.remove('hidden');cbRenderLivesHud();
     if(!cbGameChannel){
       cbGameChannel=cbClient.channel('cb-game-'+cbRoom.id,{config:{broadcast:{self:false}}})
         .on('broadcast',{event:'position'},({payload})=>{
           if(!payload||payload.player_id===cbUser?.id)return;
-          cbRemotePlayers[payload.player_id]=payload;
+          cbRemotePlayers[payload.player_id]=payload;cbRenderLivesHud();
         })
         .on('broadcast',{event:'leave'},({payload})=>{if(payload?.player_id)delete cbRemotePlayers[payload.player_id];})
         .subscribe();
     }
     cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
   }
-  function cbStopMultiplayer(){
+  function cbStopMultiplayer(keepHud=false){
     cbMultiplayerActive=false;cbRemotePlayers={};
     if(cbGameChannel){cbClient.removeChannel(cbGameChannel);cbGameChannel=null;}
     $('score').parentElement.parentElement.classList.remove('hidden');
     $('centerStats').classList.remove('hidden');
+    const livesHud=$('cbLivesHud');if(livesHud)livesHud.classList.add('hidden');
+  }
+  function cbRenderLivesHud(){
+    const box=$('cbLivesHud');if(!box||!cbRoom)return;
+    box.innerHTML='';
+    const list=cbPlayers.length?cbPlayers:[cbMyPlayer].filter(Boolean);
+    list.forEach(p=>{
+      const item=document.createElement('div');item.className='cbLifeItem';
+      const name=document.createElement('span');name.textContent=(p.player_id===cbUser?.id?'나':p.player_name||'플레이어');
+      const heart=document.createElement('span');heart.className='cbLifeHeart';
+      const alive=p.player_id===cbUser?.id?running:(cbRemotePlayers[p.player_id]?.alive!==false);
+      heart.textContent=alive?'♥':'♡';heart.style.color=alive?'#ff5d87':'#7e879c';
+      item.append(name,heart);box.appendChild(item);
+    });
+    box.classList.toggle('hidden',!cbMultiplayerActive);
   }
   function cbSendPosition(now){
     if(!cbMultiplayerActive||!cbGameChannel||!player||now-cbLastPositionSend<70)return;
@@ -332,6 +348,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function hitBall(b){
     if(b.color===player.color){
       eatenBalls++;
+      if(cbMultiplayerActive){
+        combo=0;burst(b.x,b.y,b.color,12);shake=Math.min(7,shake+1.3);updateHud();return;
+      }
       combo++;
       const base=10+Math.floor(elapsed/12);
       const mult=Math.min(12,1+Math.floor((combo-1)/2));
@@ -355,7 +374,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   }
   function gameOver(){
     running=false;paused=false;
-    if(cbMultiplayerActive){cbStopMultiplayer();$('multiOverlay').classList.remove('hidden');cbShowLobby(true);}$('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+    if(cbMultiplayerActive){
+      cbRenderLivesHud();
+      $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+      $('finalTime').textContent=Math.floor(elapsed)+'초';$('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
+      $('finalScore').textContent='—';$('bestScore').textContent='—';$('endEyebrow').textContent='MULTIPLAYER';$('endTitle').textContent='탈락';
+      $('endOverlay').classList.remove('hidden');return;
+    }
+    $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
     const isNewBest=score>best;
     lastScore=score;
     best=Math.max(best,score);
@@ -656,7 +682,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     if(result.error)throw result.error;
     cbPlayers=result.data||[];
     cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
-    cbRenderLobby();
+    cbRenderLobby();if(cbMultiplayerActive)cbRenderLivesHud();
   }
   async function cbLoadRoom(roomId){
     const result=await cbClient.from('cb_rooms').select('*').eq('id',roomId).single();
