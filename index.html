@@ -232,10 +232,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
   let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0;
+  let cbAlive=true,cbDeaths=0,cbReviveTimer=null,cbMatchStart=0,cbActiveTime=0,cbCompetitiveResults={},cbMatchEnded=false,cbLastStatusSent='';
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
     if(cbGameSessionStarted||cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
     cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
+    cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';
+    if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
     reset();lives=1;updateHud();
     if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
     score=0;combo=0;runGold=0;gold=gold;updateHud();
@@ -249,10 +252,87 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           if(!payload||payload.player_id===cbUser?.id)return;
           cbRemotePlayers[payload.player_id]=payload;cbRenderLivesHud();
         })
+        .on('broadcast',{event:'death'},({payload})=>{
+          if(!payload?.player_id)return;
+          cbRemotePlayers[payload.player_id]={...(cbRemotePlayers[payload.player_id]||{}),alive:false,deadAt:payload.deadAt,deaths:payload.deaths};
+          cbRenderLivesHud();cbEvaluateMatchEnd();
+        })
+        .on('broadcast',{event:'revive'},({payload})=>{
+          if(!payload?.player_id)return;
+          cbRemotePlayers[payload.player_id]={...(cbRemotePlayers[payload.player_id]||{}),alive:true};
+          cbRenderLivesHud();
+        })
+        .on('broadcast',{event:'match-end'},({payload})=>{
+          if(payload?.results)cbCompetitiveResults=payload.results;
+          cbFinishMultiplayerMatch(payload?.reason||'게임 종료');
+        })
         .on('broadcast',{event:'leave'},({payload})=>{if(payload?.player_id)delete cbRemotePlayers[payload.player_id];})
         .subscribe();
     }
     cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
+  }
+  function cbBroadcast(event,payload){
+    if(cbGameChannel)cbGameChannel.send({type:'broadcast',event,payload});
+  }
+  function cbHandleMultiplayerDeath(){
+    if(!cbMultiplayerActive||!cbAlive||cbMatchEnded)return;
+    cbAlive=false;running=false;paused=false;cbDeaths++;cbLastStatusSent='dead';
+    cbBroadcast('death',{player_id:cbUser?.id,deaths:cbDeaths,deadAt:Date.now()});
+    cbRenderLivesHud();
+    if(cbRoom?.mode==='coop'){
+      cbMessage('탈락! 5초 뒤 부활할 수 있어.',true);
+      if(cbReviveTimer)clearTimeout(cbReviveTimer);
+      cbReviveTimer=setTimeout(()=>{
+        cbReviveTimer=null;
+        if(!cbMultiplayerActive||cbMatchEnded)return;
+        if(!cbAnyAlive()){
+          cbFinishMultiplayerMatch('모든 참가자가 동시에 탈락했어.');
+          return;
+        }
+        cbAlive=true;running=true;invulnerable=3;cbLast=performance.now();
+        cbLastStatusSent='playing';cbBroadcast('revive',{player_id:cbUser?.id});
+        cbRenderLivesHud();cbMessage('부활! 3초 동안 무적이야.',true);
+      },5000);
+    }else{
+      cbMessage('탈락했어. 다른 참가자의 경기를 관전 중이야.',true);
+      cbEvaluateMatchEnd();
+    }
+  }
+  function cbAnyAlive(){
+    const aliveOthers=Object.values(cbRemotePlayers).filter(p=>p.alive!==false).length;
+    return cbAlive||aliveOthers>0;
+  }
+  function cbEvaluateMatchEnd(){
+    if(!cbMultiplayerActive||cbMatchEnded)return;
+    if(cbRoom?.mode==='coop'){
+      if(!cbAnyAlive()&&!cbReviveTimer){
+        cbBroadcast('match-end',{reason:'모든 참가자가 동시에 탈락했어.'});
+        cbFinishMultiplayerMatch('모든 참가자가 동시에 탈락했어.');
+      }
+    }else{
+      const aliveCount=(cbAlive?1:0)+Object.values(cbRemotePlayers).filter(p=>p.alive!==false).length;
+      if(aliveCount<=1){
+        const results={...(cbCompetitiveResults||{})};
+        results[cbUser?.id]={name:cbMyPlayer?.player_name||'나',time:Math.floor(cbActiveTime),eaten:eatenBalls,rank:cbAlive?1:2};
+        cbBroadcast('match-end',{reason:'마지막 생존자가 결정됐어.',results});
+        cbFinishMultiplayerMatch('마지막 생존자가 결정됐어.');
+      }
+    }
+  }
+  function cbFinishMultiplayerMatch(reason){
+    if(cbMatchEnded||!cbMultiplayerActive)return;
+    cbMatchEnded=true;running=false;paused=false;cbAlive=false;
+    if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
+    cbRenderLivesHud();
+    $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+    $('finalTime').textContent=Math.floor(cbActiveTime)+'초';
+    $('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
+    $('finalScore').textContent='—';$('bestScore').textContent='—';
+    $('endEyebrow').textContent=cbRoom?.mode==='competitive'?'COMPETITIVE RESULT':'CO-OP RESULT';
+    $('endTitle').textContent=reason||'게임 종료';
+    $('retryBtn').classList.add('hidden');$('exitBtn').textContent='대기실로 돌아가기';
+    $('endOverlay').classList.remove('hidden');
+    cbMarkMyGameFinished();
   }
   let cbReturningAfterGame=false;
   async function cbMarkMyGameFinished(){
@@ -328,7 +408,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbGameChannel.send({type:'broadcast',event:'position',payload:{
       player_id:cbUser?.id,player_name:cbMyPlayer?.player_name||'플레이어',
       x:player.x/Math.max(1,W),y:player.y/Math.max(1,H),
-      color:cbMyPlayer?.ball_color||'cyan',alive:running
+      color:cbMyPlayer?.ball_color||'cyan',alive:cbAlive&&running,deaths:cbDeaths
     }});
   }
 
@@ -413,27 +493,16 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       burst(player.x,player.y,player.color,24);
       burst(b.x,b.y,b.color,20);
       if(invulnerable>0)return;
-      lives--;combo=0;invulnerable=1.25;shake=Math.min(12,shake+5);
-      updateHud();
+      combo=0;shake=Math.min(12,shake+5);
+      if(cbMultiplayerActive){cbHandleMultiplayerDeath();return;}
+      lives--;invulnerable=1.25;updateHud();
       if(lives<=0){gameOver();return;}
       announce('생명 감소!  '+lives+'개 남음',b.color);
     }
   }
   function gameOver(){
     running=false;paused=false;
-    if(cbMultiplayerActive){
-      cbRenderLivesHud();
-      $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
-      $('finalTime').textContent=Math.floor(elapsed)+'초';
-      $('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
-      $('finalScore').textContent='—';$('bestScore').textContent='—';
-      $('endEyebrow').textContent='MULTIPLAYER RESULT';$('endTitle').textContent='게임 종료';
-      $('retryBtn').classList.add('hidden');
-      $('exitBtn').textContent='대기실로 돌아가기';
-      $('endOverlay').classList.remove('hidden');
-      cbMarkMyGameFinished();
-      return;
-    }
+    if(cbMultiplayerActive){cbHandleMultiplayerDeath();return;}
     $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
     const isNewBest=score>best;
     lastScore=score;
@@ -556,6 +625,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function update(dt){
     const oldSeconds=Math.floor(elapsed);
     elapsed+=dt;
+    if(cbMultiplayerActive&&cbAlive&&!cbMatchEnded)cbActiveTime+=dt;
     slowTimer=Math.max(0,slowTimer-dt);shieldCooldown=Math.max(0,shieldCooldown-dt);slowCooldown=Math.max(0,slowCooldown-dt);updateSkillButtonLabels();
     score+=Math.floor(elapsed)-oldSeconds;
     invulnerable=Math.max(0,invulnerable-dt);
