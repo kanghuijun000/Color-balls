@@ -589,7 +589,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     {id:'violet',hex:'#a78bff',name:'VIOLET'},
     {id:'lime',hex:'#9cff7b',name:'LIME'}
   ];
-  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null;
+  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null,cbRoomPollBusy=false,cbRoomPollId=null;
   let cbMode='coop',cbDifficulty='normal',cbBusy=false;
   const cbEl=id=>document.getElementById(id);
   const cbModeNames={coop:'협동 생존',competitive:'최후의 생존자'};
@@ -670,20 +670,34 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       cbRoom=payload.new;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbRenderLobby();
       if(cbRoom.status==='playing'){cbStartGameClient();}
     }).subscribe();
-    // Realtime 이벤트가 일부 기기에서 누락되어도 방 상태를 확인해 게임을 시작하도록 보완
+    // Realtime 알림이 누락되는 기기에서도 방 설정과 참가자 목록을 함께 동기화한다.
     if(cbRoomPollTimer)clearInterval(cbRoomPollTimer);
+    cbRoomPollId=cbRoom.id;
     cbRoomPollTimer=setInterval(async()=>{
-      if(!cbRoom||!cbClient||cbMultiplayerActive)return;
+      if(!cbRoom||!cbClient||cbRoom.id!==cbRoomPollId||cbRoomPollBusy)return;
+      cbRoomPollBusy=true;
       try{
-        const check=await cbClient.from('cb_rooms').select('*').eq('id',cbRoom.id).maybeSingle();
-        if(check.error||!check.data)return;
+        const roomId=cbRoom.id;
+        const check=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
+        if(check.error)throw check.error;
+        if(!check.data){
+          cbMessage('방 정보를 찾을 수 없어. 방장이 방을 나갔을 수 있어.',true);
+          return;
+        }
+        if(!cbRoom||cbRoom.id!==roomId)return;
         cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
-        if(cbRoom.status==='playing'){
-          await cbRefreshPlayers();
-          cbStartGameClient();
-        }else cbRenderLobby();
-      }catch(e){}
-    },1000);
+        // 참가자 목록을 매번 다시 읽어 인원수/색상/참가 상태를 맞춘다.
+        const people=await cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true});
+        if(people.error)throw people.error;
+        if(!cbRoom||cbRoom.id!==roomId)return;
+        cbPlayers=people.data||[];
+        cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+        cbRenderLobby();
+        if(cbRoom.status==='playing')cbStartGameClient();
+      }catch(e){
+        cbMessage('동기화 오류: '+(e.message||'연결을 확인해 줘.'),true);
+      }finally{cbRoomPollBusy=false;}
+    },1200);
     if(cbRoom.status==='playing')cbStartGameClient();
   }
   async function cbCreateRoom(){
@@ -756,6 +770,8 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   async function cbLeaveRoom(){
     if(!cbRoom||!cbUser)return;
+    if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}
+    cbRoomPollId=null;
     if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
     if(cbRoomChannel){await cbClient.removeChannel(cbRoomChannel);cbRoomChannel=null;}
     const oldRoom=cbRoom;
