@@ -278,6 +278,11 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       $('multiOverlay').classList.remove('hidden');
       $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
       await cbRefreshPlayers();
+      if(cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'&&cbPlayers.length&&cbPlayers.every(p=>p.status==='waiting')){
+        const roomUpdate=await cbClient.from('cb_rooms').update({status:'waiting'}).eq('id',roomId).eq('host_id',cbUser.id);
+        if(roomUpdate.error)throw roomUpdate.error;
+        if(cbRoom?.id===roomId)cbRoom.status='waiting';
+      }
       cbShowLobby(true);cbRenderLobby();
       cbMessage('대기실로 돌아왔어. 모든 참가자가 돌아오면 방장이 게임을 시작할 수 있어.',true);
     }catch(e){cbMessage('대기실 복귀 실패: '+(e.message||'다시 눌러 줘.'),true);}
