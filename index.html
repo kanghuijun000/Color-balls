@@ -47,6 +47,27 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 .manualDiff div{padding:10px;border-radius:10px;background:#18223a}
 .manualDiff strong{display:block;color:#f5f7ff;font-size:13px;margin-bottom:4px}
 .manualDiff span{display:block;color:#aebbd8;font-size:12px;line-height:1.55}
+
+#multiOverlay{z-index:9;overflow-y:auto;place-items:start center;padding:16px}
+#multiOverlay .card{position:relative;width:min(100%,520px);max-height:calc(100dvh - 32px);overflow-y:auto;padding:22px 18px}
+.multiClose{position:absolute;right:12px;top:12px;width:36px;height:36px;border:1px solid #3b4b6b;border-radius:11px;background:#111b30;color:#eaf2ff;font-size:24px}
+.multiField{display:flex;gap:8px;margin:10px 0}
+.multiField input{flex:1;min-width:0;border:1px solid #354361;border-radius:11px;background:#0b1325;color:#fff;padding:12px;font-size:15px}
+.multiBtn{border:1px solid #354361;border-radius:11px;background:#182640;color:#eaf2ff;padding:12px;font-weight:900}
+.multiOptions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.multiOptions button{border:1px solid #354361;border-radius:11px;padding:11px 6px;background:#101a2d;color:#b9c5e2;font-weight:900}
+.multiOptions button.selected{border-color:#65e8ff;background:#183047;color:#70e9ff}
+.multiPlayers{display:grid;gap:8px;margin:12px 0}
+.multiPlayer{display:flex;align-items:center;gap:10px;border:1px solid #2a3650;border-radius:12px;background:#10172ad9;padding:10px}
+.multiDot{width:17px;height:17px;border-radius:50%;box-shadow:0 0 10px currentColor;flex:none}
+.multiPlayerName{font-weight:900;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.multiPlayerMeta{margin-left:auto;color:#aebbd8;font-size:11px}
+.multiColorRow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px}
+.multiColor{width:40px;height:40px;border:3px solid #ffffff24;border-radius:50%;box-shadow:0 0 10px currentColor}
+.multiColor:disabled{opacity:.22;filter:grayscale(1)}
+.multiNotice{font-size:12px;line-height:1.5;color:#aebbd8;margin:8px 0}
+.multiSection{border:1px solid #2a3650;border-radius:14px;background:#10172ad9;padding:13px;margin:12px 0}
+
 </style>
 </head>
 <body>
@@ -84,8 +105,48 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       <div class="record"><div class="record-label">최고 점수</div><div class="record-value" id="homeBest">0</div></div>
     </div>
     <div class="homeActions"><button class="mode cycleMode" id="cycleModeBtn">EASY</button><button class="mode shopMode" id="openShopBtn">상점</button></div>
-    <button class="start" id="startBtn">게임 시작</button>
+    <button class="start" id="startBtn">혼자 플레이</button>
+    <button class="secondary" id="openMultiBtn">친구와 플레이</button>
     <div class="small">터치 / 마우스 지원</div>
+  </div>
+</div>
+
+
+<div class="overlay hidden" id="multiOverlay">
+  <div class="card">
+    <button class="multiClose" id="multiCloseBtn" aria-label="멀티플레이 닫기">×</button>
+    <div class="eyebrow">COLOR-BALLS ONLINE</div>
+    <div class="title" id="multiTitle">친구와 플레이</div>
+    <div id="multiHome">
+      <p class="desc">방을 만들거나 친구에게 받은 방 코드로 참가해.</p>
+      <button class="start" id="createRoomBtn">방 만들기</button>
+      <div class="multiField"><input id="joinCodeInput" maxlength="6" placeholder="방 코드 6자리" autocomplete="off"><button class="multiBtn" id="joinRoomBtn">참가</button></div>
+      <div class="multiNotice" id="multiMessage">최대 4명까지 함께 플레이할 수 있어.</div>
+    </div>
+    <div id="multiLobby" class="hidden">
+      <div class="multiSection">
+        <div class="multiNotice">방 코드</div>
+        <div class="multiField"><input id="roomCodeDisplay" readonly><button class="multiBtn" id="copyRoomCodeBtn">복사</button></div>
+        <div class="multiNotice" id="roomStatusText">대기 중</div>
+      </div>
+      <div class="multiSection">
+        <strong>게임 모드</strong>
+        <div class="multiOptions"><button id="coopModeBtn">협동 생존</button><button id="competitiveModeBtn">최후의 생존자</button></div>
+        <strong>난이도</strong>
+        <div class="multiOptions"><button data-multidiff="easy">EASY</button><button data-multidiff="normal">NORMAL</button><button data-multidiff="hard">HARD</button><button data-multidiff="extreme">EXTREME</button></div>
+        <div class="multiNotice" id="hostOnlyText">방장만 모드와 난이도를 바꿀 수 있어.</div>
+      </div>
+      <div class="multiSection">
+        <strong>내 공 색상</strong>
+        <div class="multiColorRow" id="multiColorChoices"></div>
+        <div class="multiNotice">이미 다른 사람이 선택한 색은 고를 수 없어.</div>
+      </div>
+      <strong>참가자 <span id="multiPlayerCount">0/4</span></strong>
+      <div class="multiPlayers" id="multiPlayerList"></div>
+      <button class="start" id="startMultiBtn">게임 시작</button>
+      <button class="secondary" id="leaveRoomBtn">대기실 나가기</button>
+      <div class="multiNotice" id="lobbyMessage"></div>
+    </div>
   </div>
 </div>
 
@@ -462,6 +523,201 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   const release=()=>{pointerDown=false;pointerId=null};
   canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
   canvas.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')release();});
+
+  // Online room/lobby setup. Single-player logic remains separate.
+  const CB_SUPABASE_URL='https://nbvfxlaeattbqsablsrd.supabase.co';
+  const CB_SUPABASE_KEY='sb_publishable_UVRwP4xzxz7p7aK9nKZOFw_y39XLVlr';
+  const cbClient=window.supabase?.createClient(CB_SUPABASE_URL,CB_SUPABASE_KEY);
+  const cbColors=[
+    {id:'cyan',hex:'#63eaff',name:'CYAN'},
+    {id:'pink',hex:'#ff5c91',name:'PINK'},
+    {id:'yellow',hex:'#ffe36a',name:'YELLOW'},
+    {id:'violet',hex:'#a78bff',name:'VIOLET'},
+    {id:'lime',hex:'#9cff7b',name:'LIME'}
+  ];
+  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null;
+  let cbMode='coop',cbDifficulty='normal',cbBusy=false;
+  const cbEl=id=>document.getElementById(id);
+  const cbModeNames={coop:'협동 생존',competitive:'최후의 생존자'};
+  const cbDiffNames={easy:'EASY',normal:'NORMAL',hard:'HARD',extreme:'EXTREME'};
+  function cbMessage(message,isLobby=false){cbEl(isLobby?'lobbyMessage':'multiMessage').textContent=message||'';}
+  function cbCode(){return Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'X');}
+  async function cbEnsureUser(){
+    if(!cbClient)throw new Error('Supabase 연결을 불러오지 못했어. 인터넷 연결을 확인해 줘.');
+    if(cbUser)return cbUser;
+    let sessionResult=await cbClient.auth.getSession();
+    if(sessionResult.error)throw sessionResult.error;
+    if(sessionResult.data.session?.user){cbUser=sessionResult.data.session.user;return cbUser;}
+    const sign=await cbClient.auth.signInAnonymously();
+    if(sign.error)throw sign.error;
+    cbUser=sign.data.user;
+    if(!cbUser)throw new Error('익명 로그인에 실패했어.');
+    return cbUser;
+  }
+  function cbShowLobby(show){
+    cbEl('multiHome').classList.toggle('hidden',show);
+    cbEl('multiLobby').classList.toggle('hidden',!show);
+    cbEl('multiTitle').textContent=show?'대기실':'친구와 플레이';
+  }
+  function cbPaintChoices(){
+    const row=cbEl('multiColorChoices');row.innerHTML='';
+    const occupied=cbPlayers.filter(p=>p.player_id!==cbUser?.id).map(p=>p.ball_color);
+    cbColors.forEach(c=>{
+      const b=document.createElement('button');b.className='multiColor';b.style.background=c.hex;b.style.color=c.hex;
+      b.title=c.name;b.setAttribute('aria-label',c.name+' 색상 선택');
+      b.disabled=!cbMyPlayer||occupied.includes(c.id)||cbBusy||cbRoom?.status!=='waiting';
+      if(cbMyPlayer?.ball_color===c.id)b.style.borderColor='#ffffff';
+      b.addEventListener('click',()=>cbChooseColor(c.id));row.appendChild(b);
+    });
+  }
+  function cbRenderLobby(){
+    if(!cbRoom)return;
+    cbEl('roomCodeDisplay').value=cbRoom.room_code;
+    cbEl('roomStatusText').textContent=cbRoom.status==='playing'?'게임 중':cbRoom.status==='finished'?'게임 종료':'대기 중';
+    cbEl('multiPlayerCount').textContent=cbPlayers.length+'/4';
+    cbEl('multiPlayerList').innerHTML='';
+    cbPlayers.forEach(p=>{
+      const color=cbColors.find(c=>c.id===p.ball_color)||cbColors[0];
+      const row=document.createElement('div');row.className='multiPlayer';
+      const dot=document.createElement('span');dot.className='multiDot';dot.style.background=color.hex;dot.style.color=color.hex;
+      const name=document.createElement('span');name.className='multiPlayerName';name.textContent=p.player_name+(p.player_id===cbRoom.host_id?' (방장)':'');
+      const meta=document.createElement('span');meta.className='multiPlayerMeta';meta.textContent=p.player_id===cbUser?.id?'나':p.status==='spectating'?'관전 중':'참가 중';
+      row.append(dot,name,meta);cbEl('multiPlayerList').appendChild(row);
+    });
+    const isHost=cbUser?.id===cbRoom.host_id;
+    cbEl('hostOnlyText').textContent=isHost?'방장인 너는 모드와 난이도를 바꿀 수 있어.':'방장이 모드와 난이도를 선택해.';
+    cbEl('coopModeBtn').classList.toggle('selected',cbRoom.mode==='coop');
+    cbEl('competitiveModeBtn').classList.toggle('selected',cbRoom.mode==='competitive');
+    cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.classList.toggle('selected',b.dataset.multidiff===cbRoom.difficulty));
+    cbEl('coopModeBtn').disabled=!isHost||cbRoom.status!=='waiting';
+    cbEl('competitiveModeBtn').disabled=!isHost||cbRoom.status!=='waiting';
+    cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.disabled=!isHost||cbRoom.status!=='waiting');
+    cbEl('startMultiBtn').classList.toggle('hidden',!isHost||cbRoom.status!=='waiting');
+    cbEl('leaveRoomBtn').textContent=cbRoom.status==='playing'?'대기실 나가기':'대기실 나가기';
+    cbPaintChoices();
+  }
+  async function cbRefreshPlayers(){
+    if(!cbRoom)return;
+    const result=await cbClient.from('cb_players').select('*').eq('room_id',cbRoom.id).order('joined_at',{ascending:true});
+    if(result.error)throw result.error;
+    cbPlayers=result.data||[];
+    cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+    cbRenderLobby();
+  }
+  async function cbLoadRoom(roomId){
+    const result=await cbClient.from('cb_rooms').select('*').eq('id',roomId).single();
+    if(result.error)throw result.error;
+    cbRoom=result.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
+    cbShowLobby(true);await cbRefreshPlayers();
+    if(cbChannel)await cbClient.removeChannel(cbChannel);
+    if(cbRoomChannel)await cbClient.removeChannel(cbRoomChannel);
+    cbChannel=cbClient.channel('cb-players-'+cbRoom.id).on('postgres_changes',{event:'*',schema:'public',table:'cb_players',filter:'room_id=eq.'+cbRoom.id},()=>cbRefreshPlayers().catch(e=>cbMessage(e.message,true))).subscribe();
+    cbRoomChannel=cbClient.channel('cb-room-'+cbRoom.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'cb_rooms',filter:'id=eq.'+cbRoom.id},payload=>{
+      cbRoom=payload.new;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbRenderLobby();
+      if(cbRoom.status==='playing'){cbMessage('방장이 게임을 시작했어. 실시간 게임 동기화는 다음 단계에서 연결할게.',true);}
+    }).subscribe();
+  }
+  async function cbCreateRoom(){
+    if(cbBusy)return;cbBusy=true;cbMessage('방을 만들고 있어…');
+    try{
+      await cbEnsureUser();
+      let room=null,lastError=null;
+      for(let i=0;i<5;i++){
+        const code=cbCode();
+        const created=await cbClient.from('cb_rooms').insert({room_code:code,host_id:cbUser.id,mode:'coop',difficulty:'normal',status:'waiting'}).select('*').single();
+        if(!created.error){room=created.data;break;}lastError=created.error;
+        if(created.error.code!=='23505')break;
+      }
+      if(!room)throw lastError||new Error('방 생성에 실패했어.');
+      const player=await cbClient.from('cb_players').insert({room_id:room.id,player_id:cbUser.id,player_name:'플레이어',ball_color:'cyan',status:'waiting'});
+      if(player.error){await cbClient.from('cb_rooms').delete().eq('id',room.id);throw player.error;}
+      cbRoom=room;await cbLoadRoom(room.id);cbMessage('');
+    }catch(e){cbMessage('오류: '+(e.message||'방 생성 실패'));}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbJoinRoom(){
+    if(cbBusy)return;const code=cbEl('joinCodeInput').value.trim().toUpperCase();
+    if(!/^[A-Z0-9]{6}$/.test(code)){cbMessage('방 코드는 영문/숫자 6자리로 입력해 줘.');return;}
+    cbBusy=true;cbMessage('방을 찾고 있어…');
+    try{
+      await cbEnsureUser();
+      const found=await cbClient.from('cb_rooms').select('*').eq('room_code',code).maybeSingle();
+      if(found.error)throw found.error;if(!found.data)throw new Error('해당 방을 찾지 못했어.');
+      if(found.data.status!=='waiting')throw new Error('이미 시작했거나 종료된 방이야.');
+      const existing=await cbClient.from('cb_players').select('*').eq('room_id',found.data.id).eq('player_id',cbUser.id).maybeSingle();
+      if(existing.data){cbRoom=found.data;await cbLoadRoom(found.data.id);return;}
+      const current=await cbClient.from('cb_players').select('id').eq('room_id',found.data.id);
+      if(current.error)throw current.error;if((current.data||[]).length>=4)throw new Error('방이 가득 찼어. 최대 4명이야.');
+      const used=(await cbClient.from('cb_players').select('ball_color').eq('room_id',found.data.id));
+      if(used.error)throw used.error;
+      const free=cbColors.find(c=>!(used.data||[]).some(p=>p.ball_color===c.id));
+      if(!free)throw new Error('선택 가능한 색상이 없어.');
+      const joined=await cbClient.from('cb_players').insert({room_id:found.data.id,player_id:cbUser.id,player_name:'플레이어',ball_color:free.id,status:'waiting'});
+      if(joined.error)throw joined.error;
+      await cbLoadRoom(found.data.id);cbMessage('');
+    }catch(e){cbMessage('오류: '+(e.message||'방 참가 실패'));}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbChooseColor(color){
+    if(!cbRoom||!cbMyPlayer||cbBusy)return;cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_players').update({ball_color:color}).eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(result.error)throw result.error;await cbRefreshPlayers();cbMessage('공 색상을 변경했어.',true);
+    }catch(e){cbMessage('색상 변경 실패: '+e.message,true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbSetRoom(field,value){
+    if(!cbRoom||cbUser.id!==cbRoom.host_id||cbBusy)return;cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_rooms').update({[field]:value}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
+      if(result.error)throw result.error;
+      cbRoom[field]=value;cbRenderLobby();cbMessage('');
+    }catch(e){cbMessage('설정 변경 실패: '+e.message,true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbStartRoom(){
+    if(!cbRoom||cbUser.id!==cbRoom.host_id||cbBusy)return;
+    if(cbPlayers.length<2){cbMessage('친구가 한 명 이상 참가해야 시작할 수 있어.',true);return;}
+    cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_rooms').update({status:'playing'}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
+      if(result.error)throw result.error;cbRoom.status='playing';cbRenderLobby();
+      cbMessage('대기실 연결은 완료됐어. 실시간 게임 화면과 생존 규칙은 다음 구현 단계에서 연결할게.',true);
+    }catch(e){cbMessage('게임 시작 실패: '+e.message,true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbLeaveRoom(){
+    if(!cbRoom||!cbUser)return;
+    if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
+    if(cbRoomChannel){await cbClient.removeChannel(cbRoomChannel);cbRoomChannel=null;}
+    const oldRoom=cbRoom;
+    try{
+      if(cbMyPlayer)await cbClient.from('cb_players').delete().eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(cbUser.id===oldRoom.host_id){
+        const remain=await cbClient.from('cb_players').select('*').eq('room_id',oldRoom.id).order('joined_at',{ascending:true});
+        if(!remain.error&&remain.data?.length){
+          await cbClient.from('cb_rooms').update({host_id:remain.data[0].player_id}).eq('id',oldRoom.id).eq('host_id',cbUser.id);
+        }else{
+          await cbClient.from('cb_rooms').delete().eq('id',oldRoom.id).eq('host_id',cbUser.id);
+        }
+      }
+    }catch(e){console.warn('room leave:',e);}
+    cbRoom=null;cbMyPlayer=null;cbPlayers=[];cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
+    if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
+    if(cbRoomChannel){await cbClient.removeChannel(cbRoomChannel);cbRoomChannel=null;}
+  }
+  cbEl('openMultiBtn').addEventListener('click',()=>{cbEl('multiOverlay').classList.remove('hidden');cbShowLobby(!!cbRoom);});
+  cbEl('multiCloseBtn').addEventListener('click',async()=>{if(cbRoom)await cbLeaveRoom();else cbEl('multiOverlay').classList.add('hidden');});
+  cbEl('createRoomBtn').addEventListener('click',cbCreateRoom);
+  cbEl('joinRoomBtn').addEventListener('click',cbJoinRoom);
+  cbEl('joinCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')cbJoinRoom();});
+  cbEl('copyRoomCodeBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(cbRoom?.room_code||'');cbMessage('방 코드를 복사했어.',true);}catch(e){cbEl('roomCodeDisplay').select();cbMessage('코드를 길게 눌러 복사해 줘.',true);}});
+  cbEl('coopModeBtn').addEventListener('click',()=>cbSetRoom('mode','coop'));
+  cbEl('competitiveModeBtn').addEventListener('click',()=>cbSetRoom('mode','competitive'));
+  cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.addEventListener('click',()=>cbSetRoom('difficulty',b.dataset.multidiff)));
+  cbEl('startMultiBtn').addEventListener('click',cbStartRoom);
+  cbEl('leaveRoomBtn').addEventListener('click',cbLeaveRoom);
+
   const modeCycle=['easy','normal','hard','extreme'];
   function refreshModeButton(){ $('cycleModeBtn').textContent=selectedMode.toUpperCase(); }
   $('cycleModeBtn').addEventListener('click',()=>{const idx=modeCycle.indexOf(selectedMode);selectedMode=modeCycle[(idx+1)%modeCycle.length];refreshModeButton();});
