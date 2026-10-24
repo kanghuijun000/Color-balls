@@ -79,7 +79,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       <div class="scoreLine"><span>점수:</span><strong id="score">0</strong></div>
       <div class="goldLine"><span>골드:</span><strong id="runGold">0</strong></div>
     </div>
-    <div class="centerStats">
+    <div class="centerStats" id="centerStats">
       <div class="miniStat"><span>시간</span><strong id="survivalTime">0:00</strong></div>
       <div class="miniStat"><span>생명</span><strong id="lives">♥♥♥</strong></div>
     </div>
@@ -230,6 +230,45 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
+  let cbMultiplayerActive=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0;
+  const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
+  function cbStartGameClient(){
+    if(!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
+    cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
+    reset();
+    if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
+    score=0;combo=0;runGold=0;gold=gold;updateHud();
+    $('score').parentElement.parentElement.classList.add('hidden');
+    $('centerStats').classList.add('hidden');
+    $('gameDifficulty').textContent=cbModeNames[cbRoom.mode]+' · '+selectedMode.toUpperCase();
+    $('multiOverlay').classList.add('hidden');
+    if(!cbGameChannel){
+      cbGameChannel=cbClient.channel('cb-game-'+cbRoom.id,{config:{broadcast:{self:false}}})
+        .on('broadcast',{event:'position'},({payload})=>{
+          if(!payload||payload.player_id===cbUser?.id)return;
+          cbRemotePlayers[payload.player_id]=payload;
+        })
+        .on('broadcast',{event:'leave'},({payload})=>{if(payload?.player_id)delete cbRemotePlayers[payload.player_id];})
+        .subscribe();
+    }
+    cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
+  }
+  function cbStopMultiplayer(){
+    cbMultiplayerActive=false;cbRemotePlayers={};
+    if(cbGameChannel){cbClient.removeChannel(cbGameChannel);cbGameChannel=null;}
+    $('score').parentElement.parentElement.classList.remove('hidden');
+    $('centerStats').classList.remove('hidden');
+  }
+  function cbSendPosition(now){
+    if(!cbMultiplayerActive||!cbGameChannel||!player||now-cbLastPositionSend<70)return;
+    cbLastPositionSend=now;
+    cbGameChannel.send({type:'broadcast',event:'position',payload:{
+      player_id:cbUser?.id,player_name:cbMyPlayer?.player_name||'플레이어',
+      x:player.x/Math.max(1,W),y:player.y/Math.max(1,H),
+      color:cbMyPlayer?.ball_color||'cyan',alive:running
+    }});
+  }
+
   const modeSettings={easy:{spawn:1.30,speed:.80,extra:.08},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.90,speed:1.10,extra:.22},extreme:{spawn:.52,speed:1.30,extra:.40}};
   let shieldSkills=0,slowSkills=0,slowTimer=0,shieldCooldown=0,slowCooldown=0,lastSkillSignature='',pendingBuyType=null;
   let toastUntil=0;
@@ -315,7 +354,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
   }
   function gameOver(){
-    running=false;paused=false;$('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+    running=false;paused=false;
+    if(cbMultiplayerActive){cbStopMultiplayer();$('multiOverlay').classList.remove('hidden');cbShowLobby(true);}$('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
     const isNewBest=score>best;
     lastScore=score;
     best=Math.max(best,score);
@@ -484,6 +524,18 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     for(let y=(H%step)/2;y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
     ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
     balls.forEach(drawBall);
+    if(cbMultiplayerActive){
+      Object.values(cbRemotePlayers).forEach(p=>{
+        if(!p.alive)return;
+        const c=cbColors.find(x=>x.id===p.color);if(!c)return;
+        const x=p.x*W,y=p.y*H;
+        ctx.save();ctx.shadowBlur=18;ctx.shadowColor=c.hex;ctx.fillStyle=c.hex;
+        ctx.beginPath();ctx.arc(x,y,Math.max(15,Math.min(23,W*.045)),0,Math.PI*2);ctx.fill();
+        ctx.shadowBlur=0;ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();
+        ctx.fillStyle='#ffffff';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText(p.player_name||'플레이어',x,y-25);ctx.restore();
+      });
+    }
+
     particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=colors[p.color].hex;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();});ctx.globalAlpha=1;
     if(player){
       const c=colors[player.color];
@@ -496,7 +548,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
     ctx.restore();
     if(running&&countdown>0){ctx.save();ctx.fillStyle='#ffffff';ctx.font='1000 '+Math.min(100,W*.22)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.fillText(String(Math.ceil(countdown)),W/2,H/2);ctx.restore();}
-    if(performance.now()>toastUntil){$('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
+    if(performance.now()>toastUntil){    cbSendPosition(performance.now());
+$('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   function frame(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
@@ -615,7 +668,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbChannel=cbClient.channel('cb-players-'+cbRoom.id).on('postgres_changes',{event:'*',schema:'public',table:'cb_players',filter:'room_id=eq.'+cbRoom.id},()=>cbRefreshPlayers().catch(e=>cbMessage(e.message,true))).subscribe();
     cbRoomChannel=cbClient.channel('cb-room-'+cbRoom.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'cb_rooms',filter:'id=eq.'+cbRoom.id},payload=>{
       cbRoom=payload.new;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbRenderLobby();
-      if(cbRoom.status==='playing'){cbMessage('방장이 게임을 시작했어. 실시간 게임 동기화는 다음 단계에서 연결할게.',true);}
+      if(cbRoom.status==='playing'){cbStartGameClient();}
     }).subscribe();
   }
   async function cbCreateRoom(){
@@ -682,8 +735,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbBusy=true;
     try{
       const result=await cbClient.from('cb_rooms').update({status:'playing'}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
-      if(result.error)throw result.error;cbRoom.status='playing';cbRenderLobby();
-      cbMessage('대기실 연결은 완료됐어. 실시간 게임 화면과 생존 규칙은 다음 구현 단계에서 연결할게.',true);
+      if(result.error)throw result.error;cbRoom.status='playing';cbRenderLobby();cbStartGameClient();
     }catch(e){cbMessage('게임 시작 실패: '+e.message,true);}
     finally{cbBusy=false;cbRenderLobby();}
   }
@@ -692,6 +744,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
     if(cbRoomChannel){await cbClient.removeChannel(cbRoomChannel);cbRoomChannel=null;}
     const oldRoom=cbRoom;
+    if(cbGameChannel){try{await cbGameChannel.send({type:'broadcast',event:'leave',payload:{player_id:cbUser.id}});}catch(e){}}
+    cbStopMultiplayer();
     try{
       if(cbMyPlayer)await cbClient.from('cb_players').delete().eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
       if(cbUser.id===oldRoom.host_id){
