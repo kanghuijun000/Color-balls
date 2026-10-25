@@ -868,11 +868,28 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     {id:'lime',hex:'#9cff7b',name:'LIME'}
   ];
   let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null,cbRoomPollBusy=false,cbRoomPollId=null;
-  let cbMode='coop',cbDifficulty='normal',cbBusy=false;
+  let cbMode='coop',cbDifficulty='normal',cbBusy=false,cbKickNoticeShowing=false;
   const cbEl=id=>document.getElementById(id);
   const cbModeNames={coop:'협동 생존',competitive:'최후의 생존자'};
   const cbDiffNames={easy:'EASY',normal:'NORMAL',hard:'HARD',extreme:'EXTREME'};
   function cbMessage(message,isLobby=false){cbEl(isLobby?'lobbyMessage':'multiMessage').textContent=message||'';}
+  async function cbHandleKicked(){
+    if(cbKickNoticeShowing)return;
+    cbKickNoticeShowing=true;
+    if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}
+    cbRoomPollId=null;
+    if(cbChannel){try{await cbClient.removeChannel(cbChannel);}catch(e){}cbChannel=null;}
+    if(cbRoomChannel){try{await cbClient.removeChannel(cbRoomChannel);}catch(e){}cbRoomChannel=null;}
+    cbStopMultiplayer();cbGameSessionStarted=false;
+    cbRoom=null;cbMyPlayer=null;cbPlayers=[];cbRemotePlayers={};
+    cbEl('multiOverlay').classList.add('hidden');
+    cbEl('endOverlay').classList.add('hidden');
+    cbEl('hud').classList.add('menu-hidden');
+    cbEl('skillButtons').classList.add('hidden');
+    backToTitle();
+    alert('방에서 추방되었습니다. 메인 화면으로 돌아갑니다.');
+    cbKickNoticeShowing=false;
+  }
   function cbCode(){return Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'X');}
   async function cbEnsureUser(){
     if(!cbClient)throw new Error('Supabase 연결을 불러오지 못했어. 인터넷 연결을 확인해 줘.');
@@ -956,10 +973,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       try{
         await cbRefreshPlayers();
         if(cbRoom&&cbUser&&!cbMyPlayer){
-          cbStopMultiplayer();cbGameSessionStarted=false;cbRoom=null;cbPlayers=[];
-          if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}cbRoomPollId=null;
-          cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
-          cbMessage('방장이 너를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+          await cbHandleKicked();
         }
       }catch(e){cbMessage(e.message,true);}
     }).subscribe();
@@ -1011,9 +1025,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
           if(!readyUpdate.error){cbRoom.status='waiting';cbRenderLobby();}
         }
         if(!cbMyPlayer){
-          cbStopMultiplayer();cbGameSessionStarted=false;cbRoom=null;cbPlayers=[];
-          cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
-          cbMessage('방장이 너를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+          await cbHandleKicked();
           return;
         }
         cbRenderLobby();
