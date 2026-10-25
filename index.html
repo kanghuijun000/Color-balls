@@ -234,7 +234,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbBallSnapshotSeq=0,cbLastBallSnapshotSeq=-1,cbSeenBallIds=new Set();
   let cbHostIdAtGameStart=null,cbHostEpoch=0,cbLastHostPacketAt=0,cbLastRoomSyncAt=0,cbHostTransferBusy=false,cbLastHostTransferAt=0,cbConnectionState='connecting';
   const CB_REMOTE_STALE_MS=4500,CB_HOST_STALE_MS=6500,CB_SEEN_ID_LIMIT=3000;
-  function cbRememberBall(id){if(!id)return;cbRememberBall(id);if(cbSeenBallIds.size>CB_SEEN_ID_LIMIT){const it=cbSeenBallIds.values();for(let i=0;i<500;i++){const n=it.next();if(n.done)break;cbSeenBallIds.delete(n.value);}}}
+  function cbRememberBall(id){if(!id)return;cbSeenBallIds.add(id);if(cbSeenBallIds.size>CB_SEEN_ID_LIMIT){const it=cbSeenBallIds.values();for(let i=0;i<500;i++){const n=it.next();if(n.done)break;cbSeenBallIds.delete(n.value);}}}
   function cbIsCurrentHost(){return !!cbUser?.id&&!!cbRoom?.host_id&&cbUser.id===cbRoom.host_id;}
   function cbIsActivePlayer(id){return !!id&&cbPlayers.some(p=>p.player_id===id);}
   function cbUpdateConnectionState(state){if(cbConnectionState===state)return;cbConnectionState=state;if(state==='connected')cbMessage('연결이 복구됐어.',true);else if(state==='reconnecting')cbMessage('연결이 불안정해. 경기 상태를 확인 중이야.',true);}
