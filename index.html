@@ -371,7 +371,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       if(people.error||!people.data)return;
       const candidates=people.data.filter(p=>p.player_id!==oldHost&&p.status!=='left');
       if(!candidates.some(p=>p.player_id===cbUser?.id))return;
-      const candidate=candidates[0];if(!candidate)return;
+      const candidate=candidates.find(p=>p.player_id===cbUser?.id);if(!candidate)return;
       const moved=await cbClient.from('cb_rooms').update({host_id:candidate.player_id}).eq('id',roomId).eq('host_id',oldHost).select('host_id').maybeSingle();
       if(moved.error){cbUpdateConnectionState('reconnecting');return;}
       if(moved.data?.host_id===candidate.player_id){cbRoom={...cbRoom,host_id:candidate.player_id};cbHostIdAtGameStart=candidate.player_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbUpdateConnectionState('connected');}
