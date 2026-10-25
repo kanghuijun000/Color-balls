@@ -162,6 +162,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <section class="manualSection"><h2>3. 점수와 골드</h2><ul><li>같은 색 공을 먹을 때 기본 점수를 얻고, 생존 시간이 길수록 기본 점수가 조금씩 높아져.</li><li>콤보가 올라가면 점수 배수가 증가해. 콤보 배수는 최대 12배야.</li><li>같은 색 공을 먹을 때마다 골드 1개를 획득해. 골드는 게임 중 상점에서 아이템을 사는 데 사용해.</li><li>게임이 끝나면 이번 점수와 최고 점수, 생존 시간, 먹은 공 수를 확인할 수 있어.</li></ul></section>
     <section class="manualSection"><h2>4. 아이템 구매와 사용</h2><p>시작 화면의 상점 버튼을 눌러 아이템을 구매해. 각 스킬은 종류별 최대 3개까지 보유할 수 있고, 구매할 때 골드 30개가 필요해. 구매 버튼을 누른 뒤 확인을 선택하면 골드가 차감되고 스킬이 추가돼.</p><ul><li><strong>🛡️ 3초 무적:</strong> 게임 중 방패 버튼을 누르면 3초 동안 공에 맞아도 생명이 줄지 않아.</li><li><strong>🐢 5초 슬로우:</strong> 거북이 버튼을 누르면 5초 동안 모든 공의 이동 속도가 50%로 낮아져.</li><li>스킬을 사용하면 해당 스킬은 1개 소모되고, 다음 사용까지 5초의 쿨타임이 있어. 보유 수가 없거나 쿨타임 중이면 사용할 수 없어.</li><li>컴퓨터에서는 키보드 1번으로 첫 번째 스킬, 2번으로 두 번째 스킬을 사용할 수도 있어.</li></ul></section>
     <section class="manualSection"><h2>5. 일시정지와 종료</h2><p>게임 화면의 Ⅱ 버튼으로 일시정지할 수 있어. 다시 시작을 누르면 3초 카운트다운 후 이어지고, 나가기를 선택하면 시작 화면으로 돌아가. 게임 오버 화면의 다시 플레이로 재도전하거나 나가기로 시작 화면에 돌아올 수 있어.</p></section>
+    <section class="manualSection"><h2>6. 멀티플레이 규칙</h2><ul><li>친구와 플레이에서 방을 만들거나 6자리 방 코드로 참가할 수 있고, 최대 4명이 함께할 수 있어.</li><li>각 참가자는 서로 다른 공 색상을 선택해. 방장만 게임 모드와 난이도를 바꾸고 게임을 시작할 수 있어.</li><li>협동 생존에서는 함께 살아남는 것이 목표이고, 최후의 생존자 모드에서는 마지막까지 살아남는 것이 목표야.</li><li>멀티플레이 중에는 상점 스킬 아이템을 사용할 수 없어. 스킬 버튼과 키보드 1·2 단축키도 비활성화돼.</li><li>게임 도중 연결이 끊기면 잠시 재연결을 기다려. 제한 시간 안에 돌아오지 않은 참가자는 경기에서 제외될 수 있어.</li><li>경기가 끝나면 참가자들이 대기실로 돌아온 뒤 방장이 다음 경기를 시작할 수 있어. 대기실을 나가려면 ‘대기실 나가기’를 눌러.</li></ul></section>
   </div>
 </div>
 
@@ -251,7 +252,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('score').parentElement.parentElement.classList.add('hidden');
     $('centerStats').classList.add('hidden');
     $('gameDifficulty').textContent=cbModeNames[cbRoom.mode]+' · '+selectedMode.toUpperCase();
-    $('multiOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');$('skillButtons').classList.remove('hidden');cbRenderLivesHud();
+    $('multiOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');$('skillButtons').classList.add('hidden');cbRenderLivesHud();
     if(!cbGameChannel){
       cbGameChannel=cbClient.channel('cb-game-'+cbRoom.id,{config:{broadcast:{self:false}}})
         .on('broadcast',{event:'position'},({payload})=>{
@@ -651,7 +652,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     });
   }
   function useSkill(type){
-    if(!running||paused||countdown>0)return;
+    if(cbMultiplayerActive||!running||paused||countdown>0)return;
     const count=type==='shield'?shieldSkills:slowSkills;
     const cooldown=type==='shield'?shieldCooldown:slowCooldown;
     if(count<=0||cooldown>0)return;
@@ -883,6 +884,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     return cbUser;
   }
   function cbShowLobby(show){
+    cbEl('multiCloseBtn').classList.toggle('hidden',show);
     cbEl('multiHome').classList.toggle('hidden',show);
     cbEl('multiLobby').classList.toggle('hidden',!show);
     cbEl('multiTitle').textContent=show?'대기실':'친구와 플레이';
@@ -1138,7 +1140,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   $('pauseBtn').addEventListener('click',togglePause);
   // Desktop shortcuts: 1 uses the first owned skill, 2 the second.
   window.addEventListener('keydown',e=>{
-    if(e.repeat||e.ctrlKey||e.altKey||e.metaKey)return;
+    if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||cbMultiplayerActive)return;
     if(e.key!=='1'&&e.key!=='2')return;
     if(!running||paused||countdown>0)return;
     const skillButtons=[...$('skillButtons').querySelectorAll('[data-skill]')];
