@@ -299,23 +299,40 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
   }
   function cbAnyAlive(){
-    const aliveOthers=Object.values(cbRemotePlayers).filter(p=>p.alive!==false).length;
-    return cbAlive||aliveOthers>0;
+    // Remote players are considered alive until a death message explicitly arrives.
+    return cbAlive||Object.values(cbRemotePlayers).some(p=>p.alive!==false);
   }
   function cbEvaluateMatchEnd(){
-    if(!cbMultiplayerActive||cbMatchEnded)return;
-    if(cbRoom?.mode==='coop'){
+    if(!cbMultiplayerActive||cbMatchEnded||!cbRoom)return;
+    // Only the host announces the final result. This avoids different clients
+    // racing to publish contradictory rankings.
+    if(cbUser?.id!==cbRoom.host_id)return;
+    const remotes=Object.values(cbRemotePlayers);
+    if(cbRoom.mode==='coop'){
       if(!cbAnyAlive()&&!cbReviveTimer){
-        cbBroadcast('match-end',{reason:'모든 참가자가 동시에 탈락했어.'});
-        cbFinishMultiplayerMatch('모든 참가자가 동시에 탈락했어.');
+        const reason='모든 참가자가 동시에 탈락했어.';
+        cbBroadcast('match-end',{reason,results:{}});
+        cbFinishMultiplayerMatch(reason);
       }
     }else{
-      const aliveCount=(cbAlive?1:0)+Object.values(cbRemotePlayers).filter(p=>p.alive!==false).length;
+      const aliveCount=(cbAlive?1:0)+remotes.filter(p=>p.alive!==false).length;
       if(aliveCount<=1){
-        const results={...(cbCompetitiveResults||{})};
-        results[cbUser?.id]={name:cbMyPlayer?.player_name||'나',time:Math.floor(cbActiveTime),eaten:eatenBalls,rank:cbAlive?1:2};
-        cbBroadcast('match-end',{reason:'마지막 생존자가 결정됐어.',results});
-        cbFinishMultiplayerMatch('마지막 생존자가 결정됐어.');
+        const rows=[{
+          id:cbUser.id,name:cbMyPlayer?.player_name||'나',
+          time:Math.floor(cbActiveTime),eaten:eatenBalls,alive:cbAlive
+        }];
+        remotes.forEach(p=>rows.push({
+          id:p.player_id,name:p.player_name||'플레이어',
+          time:Math.floor(Number(p.activeTime)||0),eaten:Math.max(0,Number(p.eaten)||0),
+          alive:p.alive!==false
+        }));
+        rows.sort((a,b)=>(Number(b.alive)-Number(a.alive))||b.time-a.time);
+        const results={};
+        rows.forEach((p,i)=>results[p.id]={name:p.name,time:p.time,eaten:p.eaten,rank:i+1,alive:p.alive});
+        const reason=rows.find(p=>p.alive)?.name+' 승리!';
+        cbBroadcast('match-end',{reason,results});
+        cbCompetitiveResults=results;
+        cbFinishMultiplayerMatch(reason);
       }
     }
   }
@@ -325,11 +342,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
     cbRenderLivesHud();
     $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
-    $('finalTime').textContent=Math.floor(cbActiveTime)+'초';
-    $('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
+    const myResult=cbCompetitiveResults?.[cbUser?.id];
+    $('finalTime').textContent=(myResult?.time??Math.floor(cbActiveTime))+'초';
+    $('finalEaten').textContent=(myResult?.eaten??eatenBalls).toLocaleString()+'개';
     $('finalScore').textContent='—';$('bestScore').textContent='—';
     $('endEyebrow').textContent=cbRoom?.mode==='competitive'?'COMPETITIVE RESULT':'CO-OP RESULT';
-    $('endTitle').textContent=reason||'게임 종료';
+    $('endTitle').textContent=cbRoom?.mode==='competitive'&&myResult?.rank
+      ? (myResult.rank+'위 · '+(reason||'게임 종료'))
+      : (reason||'게임 종료');
     $('retryBtn').classList.add('hidden');$('exitBtn').textContent='대기실로 돌아가기';
     $('endOverlay').classList.remove('hidden');
     cbMarkMyGameFinished();
@@ -408,7 +428,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbGameChannel.send({type:'broadcast',event:'position',payload:{
       player_id:cbUser?.id,player_name:cbMyPlayer?.player_name||'플레이어',
       x:player.x/Math.max(1,W),y:player.y/Math.max(1,H),
-      color:cbMyPlayer?.ball_color||'cyan',alive:cbAlive&&running,deaths:cbDeaths
+      color:cbMyPlayer?.ball_color||'cyan',alive:cbAlive&&running,deaths:cbDeaths,
+      activeTime:Math.floor(cbActiveTime),eaten:eatenBalls
     }});
   }
 
