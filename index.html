@@ -1126,9 +1126,12 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     try{
       if(cbMyPlayer)await cbClient.from('cb_players').delete().eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
       if(cbUser.id===oldRoom.host_id){
-        const remain=await cbClient.from('cb_players').select('*').eq('room_id',oldRoom.id).order('joined_at',{ascending:true});
+        const remain=await cbClient.from('cb_players').select('*').eq('room_id',oldRoom.id);
         if(!remain.error&&remain.data?.length){
-          await cbClient.from('cb_rooms').update({host_id:remain.data[0].player_id}).eq('id',oldRoom.id).eq('host_id',cbUser.id);
+          // 남아 있는 대기실 참가자 중 한 명을 무작위로 새 방장으로 지정한다.
+          const nextHost=remain.data[Math.floor(Math.random()*remain.data.length)];
+          const transfer=await cbClient.from('cb_rooms').update({host_id:nextHost.player_id}).eq('id',oldRoom.id).eq('host_id',cbUser.id);
+          if(transfer.error)throw transfer.error;
         }else{
           await cbClient.from('cb_rooms').delete().eq('id',oldRoom.id).eq('host_id',cbUser.id);
         }
