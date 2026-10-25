@@ -280,6 +280,12 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
             else balls.push(values);
           }
         })
+        .on('broadcast',{event:'ball-hit'},({payload})=>{
+          if(!payload?.id||!payload?.player_id)return;
+          const hit=balls.find(b=>b.id===payload.id);
+          cbSeenBallIds.add(payload.id);balls=balls.filter(b=>b.id!==payload.id);
+          if(payload.player_id===cbUser?.id&&hit&&cbMultiplayerActive&&cbAlive&&!cbMatchEnded)hitBall(hit);
+        })
         .on('broadcast',{event:'ball-eaten'},({payload})=>{
           if(!payload?.id)return;
           cbSeenBallIds.add(payload.id);balls=balls.filter(b=>b.id!==payload.id);
@@ -701,8 +707,29 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
         if(Number.isFinite(b.targetVx))b.vx+=(b.targetVx-b.vx)*blend;
         if(Number.isFinite(b.targetVy))b.vy+=(b.targetVy-b.vy)*blend;
       }
-      const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
-      if(dist<b.r+player.r){balls.splice(i,1);if(cbMultiplayerActive&&b.id){cbSeenBallIds.add(b.id);cbBroadcast('ball-eaten',{id:b.id,player_id:cbUser?.id});}hitBall(b);if(!running)return;continue;}
+      if(cbMultiplayerActive){
+        if(cbUser?.id===cbRoom?.host_id){
+          let hitPlayer=null;
+          const dx=b.x-player.x,dy=b.y-player.y;
+          if(Math.hypot(dx,dy)<b.r+player.r)hitPlayer=cbUser.id;
+          if(!hitPlayer){
+            for(const p of Object.values(cbRemotePlayers)){
+              if(p.alive===false||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
+              const px=p.x*W,py=p.y*H,pr=Math.max(15,Math.min(23,W*.045));
+              if(Math.hypot(b.x-px,b.y-py)<b.r+pr){hitPlayer=p.player_id;break;}
+            }
+          }
+          if(hitPlayer){
+            balls.splice(i,1);
+            if(b.id){cbSeenBallIds.add(b.id);cbBroadcast('ball-hit',{id:b.id,player_id:hitPlayer,seq:cbBallSnapshotSeq});}
+            if(hitPlayer===cbUser.id){hitBall(b);if(!running)return;}
+            continue;
+          }
+        }
+      }else{
+        const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
+        if(dist<b.r+player.r){balls.splice(i,1);hitBall(b);if(!running)return;continue;}
+      }
       if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)balls.splice(i,1);
     }
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.08,dt);p.vy*=Math.pow(.08,dt);if(p.life<=0)particles.splice(i,1);}
