@@ -60,14 +60,14 @@ begin
   end if;
 
   -- Atomic compare-and-set: exactly one participant can take over after
-  -- the current host has stopped heartbeating for 8 seconds.
+  -- the current host has stopped heartbeating for 4 seconds.
   update public.cb_rooms r
   set host_id = v_user,
       host_seen_at = now()
   where r.id = p_room_id
     and r.status = 'playing'
     and r.host_id <> v_user
-    and coalesce(r.host_seen_at, r.created_at) < now() - interval '8 seconds'
+    and coalesce(r.host_seen_at, r.created_at) < now() - interval '4 seconds'
     and exists (
       select 1 from public.cb_players p
       where p.room_id = r.id
