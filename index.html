@@ -282,7 +282,11 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
         })
         .on('broadcast',{event:'ball-hit'},({payload})=>{
           if(!payload?.id||!payload?.player_id)return;
-          const hit=balls.find(b=>b.id===payload.id);
+          let hit=balls.find(b=>b.id===payload.id);
+          if(!hit&&payload.ball&&typeof payload.ball==='object'){
+            const b=payload.ball;
+            hit={id:payload.id,x:(Number(b.x)||0)*W,y:(Number(b.y)||0)*H,vx:(Number(b.vx)||0)*W,vy:(Number(b.vy)||0)*H,r:(Number(b.r)||0)*Math.min(W,H),color:Number(b.color)||0,kind:Number(b.kind)||0,age:Number(b.age)||0,phase:Number(b.phase)||0,turn:Number(b.turn)||0};
+          }
           cbSeenBallIds.add(payload.id);balls=balls.filter(b=>b.id!==payload.id);
           if(payload.player_id===cbUser?.id&&hit&&cbMultiplayerActive&&cbAlive&&!cbMatchEnded)hitBall(hit);
         })
@@ -721,7 +725,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           }
           if(hitPlayer){
             balls.splice(i,1);
-            if(b.id){cbSeenBallIds.add(b.id);cbBroadcast('ball-hit',{id:b.id,player_id:hitPlayer,seq:cbBallSnapshotSeq});}
+            if(b.id){cbSeenBallIds.add(b.id);cbBroadcast('ball-hit',{id:b.id,player_id:hitPlayer,seq:cbBallSnapshotSeq,ball:{x:b.x/Math.max(1,W),y:b.y/Math.max(1,H),vx:b.vx/Math.max(1,W),vy:b.vy/Math.max(1,H),r:b.r/Math.max(1,Math.min(W,H)),color:b.color,kind:b.kind,age:b.age,phase:b.phase,turn:b.turn}});}
             if(hitPlayer===cbUser.id){hitBall(b);if(!running)return;}
             continue;
           }
@@ -784,7 +788,8 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   function frame(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
-    if(running&&!paused){if(countdown>0){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
+    const shouldSimulate=(!paused&&(running||(cbMultiplayerActive&&!cbMatchEnded)));
+    if(shouldSimulate){if(countdown>0&&running){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
     draw();requestAnimationFrame(frame);
   }
   function pointerMove(e){
