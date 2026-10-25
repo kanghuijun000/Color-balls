@@ -470,9 +470,12 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(!confirm((target.player_name||'참가자')+'님을 방에서 추방할까? 방 코드를 알면 다시 참가할 수 있어.'))return;
     cbBusy=true;
     try{
-      const result=await cbClient.from('cb_players').delete().eq('room_id',cbRoom.id).eq('player_id',playerId);
+      const roomId=cbRoom.id;
+      const result=await cbClient.from('cb_players').delete().eq('room_id',roomId).eq('player_id',playerId).select('player_id');
       if(result.error)throw result.error;
-      await cbRefreshPlayers();cbMessage('참가자를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+      if(!result.data||result.data.length===0)throw new Error('참가자 정보가 삭제되지 않았어. 데이터베이스 권한(RLS) 또는 이미 나간 참가자인지 확인해야 해.');
+      await cbRefreshPlayers();
+      cbMessage('참가자를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
     }catch(e){cbMessage('추방 실패: '+(e.message||'다시 시도해 줘.'),true);}
     finally{cbBusy=false;cbRenderLobby();}
   }
@@ -949,7 +952,17 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     cbShowLobby(true);await cbRefreshPlayers();
     if(cbChannel)await cbClient.removeChannel(cbChannel);
     if(cbRoomChannel)await cbClient.removeChannel(cbRoomChannel);
-    cbChannel=cbClient.channel('cb-players-'+cbRoom.id).on('postgres_changes',{event:'*',schema:'public',table:'cb_players',filter:'room_id=eq.'+cbRoom.id},()=>cbRefreshPlayers().catch(e=>cbMessage(e.message,true))).subscribe();
+    cbChannel=cbClient.channel('cb-players-'+cbRoom.id).on('postgres_changes',{event:'*',schema:'public',table:'cb_players',filter:'room_id=eq.'+cbRoom.id},async()=>{
+      try{
+        await cbRefreshPlayers();
+        if(cbRoom&&cbUser&&!cbMyPlayer){
+          cbStopMultiplayer();cbGameSessionStarted=false;cbRoom=null;cbPlayers=[];
+          if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}cbRoomPollId=null;
+          cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
+          cbMessage('방장이 너를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+        }
+      }catch(e){cbMessage(e.message,true);}
+    }).subscribe();
     cbRoomChannel=cbClient.channel('cb-room-'+cbRoom.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'cb_rooms',filter:'id=eq.'+cbRoom.id},payload=>{
       cbRoom=payload.new;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbRenderLobby();
       if(cbRoom.status==='playing'){cbStartGameClient();}
@@ -1038,12 +1051,16 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       const found=await cbClient.from('cb_rooms').select('*').eq('room_code',code).maybeSingle();
       if(found.error)throw found.error;if(!found.data)throw new Error('해당 방을 찾지 못했어.');
       if(found.data.status!=='waiting')throw new Error('이미 시작했거나 종료된 방이야.');
-      const existing=await cbClient.from('cb_players').select('*').eq('room_id',found.data.id).eq('player_id',cbUser.id).maybeSingle();
+      const [existing,current,used]=await Promise.all([
+        cbClient.from('cb_players').select('*').eq('room_id',found.data.id).eq('player_id',cbUser.id).maybeSingle(),
+        cbClient.from('cb_players').select('id').eq('room_id',found.data.id),
+        cbClient.from('cb_players').select('ball_color').eq('room_id',found.data.id)
+      ]);
+      if(existing.error)throw existing.error;
       if(existing.data){cbRoom=found.data;await cbLoadRoom(found.data.id);return;}
-      const current=await cbClient.from('cb_players').select('id').eq('room_id',found.data.id);
-      if(current.error)throw current.error;if((current.data||[]).length>=4)throw new Error('방이 가득 찼어. 최대 4명이야.');
-      const used=(await cbClient.from('cb_players').select('ball_color').eq('room_id',found.data.id));
+      if(current.error)throw current.error;
       if(used.error)throw used.error;
+      if((current.data||[]).length>=4)throw new Error('방이 가득 찼어. 최대 4명이야.');
       const free=cbColors.find(c=>!(used.data||[]).some(p=>p.ball_color===c.id));
       if(!free)throw new Error('선택 가능한 색상이 없어.');
       const joined=await cbClient.from('cb_players').insert({room_id:found.data.id,player_id:cbUser.id,player_name:'플레이어',ball_color:free.id,status:'waiting'});
