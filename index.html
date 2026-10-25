@@ -232,11 +232,17 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
   let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbBallSnapshotSeq=0,cbLastBallSnapshotSeq=-1,cbSeenBallIds=new Set();
+  let cbHostIdAtGameStart=null,cbHostEpoch=0,cbLastHostPacketAt=0,cbLastRoomSyncAt=0,cbHostTransferBusy=false,cbLastHostTransferAt=0,cbConnectionState='connecting';
+  const CB_REMOTE_STALE_MS=4500,CB_HOST_STALE_MS=6500,CB_SEEN_ID_LIMIT=3000;
+  function cbRememberBall(id){if(!id)return;cbSeenBallIds.add(id);if(cbSeenBallIds.size>CB_SEEN_ID_LIMIT){const it=cbSeenBallIds.values();for(let i=0;i<500;i++){const n=it.next();if(n.done)break;cbSeenBallIds.delete(n.value);}}}
+  function cbIsCurrentHost(){return !!cbUser?.id&&!!cbRoom?.host_id&&cbUser.id===cbRoom.host_id;}
+  function cbIsActivePlayer(id){return !!id&&cbPlayers.some(p=>p.player_id===id);}
+  function cbUpdateConnectionState(state){if(cbConnectionState===state)return;cbConnectionState=state;if(state==='connected')cbMessage('연결이 복구됐어.',true);else if(state==='reconnecting')cbMessage('연결이 불안정해. 경기 상태를 확인 중이야.',true);}
   let cbAlive=true,cbDeaths=0,cbReviveTimer=null,cbMatchStart=0,cbActiveTime=0,cbCompetitiveResults={},cbMatchEnded=false,cbLastStatusSent='';
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
     if(cbGameSessionStarted||cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
-    cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
+    cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbLastHostPacketAt=Date.now();cbLastRoomSyncAt=Date.now();cbConnectionState='connected';
     cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';cbLastBallSync=0;cbBallSeq=0;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbSeenBallIds=new Set();balls=[];
     if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
     reset();lives=1;updateHud();
@@ -249,8 +255,10 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(!cbGameChannel){
       cbGameChannel=cbClient.channel('cb-game-'+cbRoom.id,{config:{broadcast:{self:false}}})
         .on('broadcast',{event:'position'},({payload})=>{
-          if(!payload||payload.player_id===cbUser?.id)return;
-          cbRemotePlayers[payload.player_id]=payload;cbRenderLivesHud();
+          if(!payload||payload.player_id===cbUser?.id||!cbIsActivePlayer(payload.player_id))return;
+          const receivedAt=Date.now();cbRemotePlayers[payload.player_id]={...payload,_receivedAt:receivedAt};
+          if(payload.player_id===cbRoom?.host_id)cbLastHostPacketAt=receivedAt;
+          cbRenderLivesHud();
         })
         .on('broadcast',{event:'death'},({payload})=>{
           if(!payload?.player_id)return;
@@ -267,8 +275,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           cbFinishMultiplayerMatch(payload?.reason||'게임 종료');
         })
         .on('broadcast',{event:'balls'},({payload})=>{
-          if(cbUser?.id===cbRoom?.host_id||!Array.isArray(payload?.balls)||!Number.isFinite(payload?.seq)||payload.seq<=cbLastBallSnapshotSeq)return;
-          cbLastBallSnapshotSeq=payload.seq;
+          if(cbIsCurrentHost()||!Array.isArray(payload?.balls)||!Number.isFinite(payload?.seq)||payload.seq<=cbLastBallSnapshotSeq)return;
+          if(payload.host_id&&payload.host_id!==cbRoom?.host_id)return;
+          cbLastHostPacketAt=Date.now();cbLastBallSnapshotSeq=payload.seq;
           const receivedIds=new Set(payload.balls.map(b=>b.id));
           if(!payload.truncated)balls=balls.filter(b=>receivedIds.has(b.id)&&!cbSeenBallIds.has(b.id));
           else balls=balls.filter(b=>!cbSeenBallIds.has(b.id));
@@ -287,7 +296,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
             const b=payload.ball;
             hit={id:payload.id,x:(Number(b.x)||0)*W,y:(Number(b.y)||0)*H,vx:(Number(b.vx)||0)*W,vy:(Number(b.vy)||0)*H,r:(Number(b.r)||0)*Math.min(W,H),color:Number(b.color)||0,kind:Number(b.kind)||0,age:Number(b.age)||0,phase:Number(b.phase)||0,turn:Number(b.turn)||0};
           }
-          cbSeenBallIds.add(payload.id);balls=balls.filter(b=>b.id!==payload.id);
+          cbRememberBall(payload.id);balls=balls.filter(b=>b.id!==payload.id);
           if(payload.player_id===cbUser?.id&&hit&&cbMultiplayerActive&&cbAlive&&!cbMatchEnded)hitBall(hit);
         })
         .on('broadcast',{event:'ball-eaten'},({payload})=>{
@@ -300,7 +309,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
   }
   function cbBroadcast(event,payload){
-    if(cbGameChannel)cbGameChannel.send({type:'broadcast',event,payload});
+    if(!cbGameChannel||!cbMultiplayerActive)return;
+    const envelope={...(payload||{}),sender_id:cbUser?.id,host_id:cbRoom?.host_id,host_epoch:cbHostEpoch,sent_at:Date.now()};
+    try{const sent=cbGameChannel.send({type:'broadcast',event,payload:envelope});if(sent&&typeof sent.catch==='function')sent.catch(()=>cbUpdateConnectionState('reconnecting'));}catch(e){cbUpdateConnectionState('reconnecting');}
   }
   function cbSerializeBalls(){
     return balls.slice(0,140).map(b=>({id:b.id,x:b.x/Math.max(1,W),y:b.y/Math.max(1,H),vx:b.vx/Math.max(1,W),vy:b.vy/Math.max(1,H),r:b.r/Math.max(1,Math.min(W,H)),color:b.color,kind:b.kind,age:b.age,phase:b.phase,turn:b.turn}));
@@ -308,7 +319,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function cbSyncBalls(now){
     if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<33)return;
     cbLastBallSync=now;
-    if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{seq:++cbBallSnapshotSeq,truncated:balls.length>140,balls:cbSerializeBalls()});
+    if(cbIsCurrentHost())cbBroadcast('balls',{host_id:cbUser.id,host_epoch:cbHostEpoch,seq:++cbBallSnapshotSeq,truncated:balls.length>140,balls:cbSerializeBalls()});
   }
   function cbHandleMultiplayerDeath(){
     if(!cbMultiplayerActive||!cbAlive||cbMatchEnded)return;
@@ -335,14 +346,43 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
   }
   function cbAnyAlive(){
-    // Remote players are considered alive until a death message explicitly arrives.
-    return cbAlive||Object.values(cbRemotePlayers).some(p=>p.alive!==false);
+    const now=Date.now();
+    return cbAlive||Object.values(cbRemotePlayers).some(p=>p.alive!==false&&now-(p._receivedAt||now)<CB_REMOTE_STALE_MS);
+  }
+  function cbPruneStalePlayers(){
+    if(!cbMultiplayerActive)return;
+    const now=Date.now();let changed=false;
+    for(const [id,p] of Object.entries(cbRemotePlayers)){
+      if(!cbIsActivePlayer(id)){delete cbRemotePlayers[id];changed=true;continue;}
+      if(now-(p._receivedAt||now)>CB_REMOTE_STALE_MS&&p.alive!==false){cbRemotePlayers[id]={...p,alive:false,_stale:true};changed=true;}
+    }
+    if(changed){cbRenderLivesHud();if(cbIsCurrentHost())cbEvaluateMatchEnd();}
+  }
+  async function cbTryTransferHost(){
+    if(!cbMultiplayerActive||!cbRoom||!cbClient||cbHostTransferBusy||cbIsCurrentHost())return;
+    const now=Date.now();if(now-cbLastHostTransferAt<CB_HOST_STALE_MS)return;
+    if(now-cbLastHostPacketAt<CB_HOST_STALE_MS)return;
+    cbHostTransferBusy=true;cbLastHostTransferAt=now;
+    try{
+      const roomId=cbRoom.id,oldHost=cbRoom.host_id;
+      const fresh=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
+      if(fresh.error||!fresh.data||fresh.data.status!=='playing'||fresh.data.host_id!==oldHost)return;
+      const people=await cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true});
+      if(people.error||!people.data)return;
+      const candidates=people.data.filter(p=>p.player_id!==oldHost&&p.status!=='left');
+      if(!candidates.some(p=>p.player_id===cbUser?.id))return;
+      const candidate=candidates[0];if(!candidate)return;
+      const moved=await cbClient.from('cb_rooms').update({host_id:candidate.player_id}).eq('id',roomId).eq('host_id',oldHost).select('host_id').maybeSingle();
+      if(moved.error){cbUpdateConnectionState('reconnecting');return;}
+      if(moved.data?.host_id===candidate.player_id){cbRoom={...cbRoom,host_id:candidate.player_id};cbHostIdAtGameStart=candidate.player_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbUpdateConnectionState('connected');}
+    }catch(e){cbUpdateConnectionState('reconnecting');}
+    finally{cbHostTransferBusy=false;}
   }
   function cbEvaluateMatchEnd(){
     if(!cbMultiplayerActive||cbMatchEnded||!cbRoom)return;
     // Only the host announces the final result. This avoids different clients
     // racing to publish contradictory rankings.
-    if(cbUser?.id!==cbRoom.host_id)return;
+    if(!cbIsCurrentHost())return;
     const remotes=Object.values(cbRemotePlayers);
     if(cbRoom.mode==='coop'){
       if(!cbAnyAlive()&&!cbReviveTimer){
@@ -438,7 +478,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     finally{cbBusy=false;cbRenderLobby();}
   }
   function cbStopMultiplayer(keepHud=false){
-    cbMultiplayerActive=false;cbRemotePlayers={};
+    cbMultiplayerActive=false;cbRemotePlayers={};cbHostTransferBusy=false;cbHostIdAtGameStart=null;cbConnectionState='connecting';
     if(cbGameChannel){cbClient.removeChannel(cbGameChannel);cbGameChannel=null;}
     $('score').parentElement.parentElement.classList.remove('hidden');
     $('centerStats').classList.remove('hidden');
@@ -712,7 +752,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
         if(Number.isFinite(b.targetVy))b.vy+=(b.targetVy-b.vy)*blend;
       }
       if(cbMultiplayerActive){
-        if(cbUser?.id===cbRoom?.host_id){
+        if(cbIsCurrentHost()){
           let hitPlayer=null;
           const dx=b.x-player.x,dy=b.y-player.y;
           if(cbAlive&&Math.hypot(dx,dy)<b.r+player.r)hitPlayer=cbUser.id;
@@ -930,7 +970,8 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
         }
         if(!cbRoom||cbRoom.id!==roomId)return;
         const previousRoomStatus=cbRoom.status;
-        cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
+        const previousHost=cbRoom.host_id;cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbLastRoomSyncAt=Date.now();
+        if(previousHost!==cbRoom.host_id){cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();if(cbIsCurrentHost()){cbBallSnapshotSeq=0;cbMessage('방장 역할을 이어받았어. 경기 상태를 동기화 중이야.',true);}else cbMessage('방장이 변경됐어. 경기 상태를 동기화 중이야.',true);}
         if(previousRoomStatus==='playing'&&cbRoom.status==='waiting'&&cbMultiplayerActive){
           cbGameSessionStarted=false;cbStopMultiplayer();
           $('endOverlay').classList.add('hidden');$('multiOverlay').classList.remove('hidden');
@@ -956,7 +997,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
           return;
         }
         cbRenderLobby();
-        if(cbRoom.status==='playing')cbStartGameClient();
+        if(cbRoom.status==='playing'){cbStartGameClient();cbPruneStalePlayers();if(!cbIsCurrentHost())await cbTryTransferHost();}
       }catch(e){
         cbMessage('동기화 오류: '+(e.message||'연결을 확인해 줘.'),true);
       }finally{cbRoomPollBusy=false;}
