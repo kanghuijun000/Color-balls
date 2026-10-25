@@ -715,7 +715,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
         if(cbUser?.id===cbRoom?.host_id){
           let hitPlayer=null;
           const dx=b.x-player.x,dy=b.y-player.y;
-          if(Math.hypot(dx,dy)<b.r+player.r)hitPlayer=cbUser.id;
+          if(cbAlive&&Math.hypot(dx,dy)<b.r+player.r)hitPlayer=cbUser.id;
           if(!hitPlayer){
             for(const p of Object.values(cbRemotePlayers)){
               if(p.alive===false||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
