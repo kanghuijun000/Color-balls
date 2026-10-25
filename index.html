@@ -877,6 +877,12 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
         if(!cbRoom||cbRoom.id!==roomId)return;
         cbPlayers=people.data||[];
         cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+        // The host may have returned before the other players. Re-check readiness
+        // during polling so the room can become startable when the last player returns.
+        if(cbMyPlayer&&cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'&&cbPlayers.length>=2&&cbPlayers.every(p=>p.status==='waiting')){
+          const readyUpdate=await cbClient.from('cb_rooms').update({status:'waiting'}).eq('id',roomId).eq('host_id',cbUser.id).eq('status','playing');
+          if(!readyUpdate.error){cbRoom.status='waiting';cbRenderLobby();}
+        }
         if(!cbMyPlayer){
           cbStopMultiplayer();cbGameSessionStarted=false;cbRoom=null;cbPlayers=[];
           cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
