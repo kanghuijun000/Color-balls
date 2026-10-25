@@ -231,13 +231,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
-  let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbSeenBallIds=new Set();
+  let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbBallSnapshotSeq=0,cbLastBallSnapshotSeq=-1,cbSeenBallIds=new Set();
   let cbAlive=true,cbDeaths=0,cbReviveTimer=null,cbMatchStart=0,cbActiveTime=0,cbCompetitiveResults={},cbMatchEnded=false,cbLastStatusSent='';
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
     if(cbGameSessionStarted||cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
     cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
-    cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';cbLastBallSync=0;cbBallSeq=0;cbSeenBallIds=new Set();balls=[];
+    cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';cbLastBallSync=0;cbBallSeq=0;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbSeenBallIds=new Set();balls=[];
     if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
     reset();lives=1;updateHud();
     if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
@@ -267,7 +267,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           cbFinishMultiplayerMatch(payload?.reason||'게임 종료');
         })
         .on('broadcast',{event:'balls'},({payload})=>{
-          if(cbUser?.id===cbRoom?.host_id||!Array.isArray(payload?.balls))return;
+          if(cbUser?.id===cbRoom?.host_id||!Array.isArray(payload?.balls)||!Number.isFinite(payload?.seq)||payload.seq<=cbLastBallSnapshotSeq)return;
+          cbLastBallSnapshotSeq=payload.seq;
           const receivedIds=new Set(payload.balls.map(b=>b.id));
           balls=balls.filter(b=>receivedIds.has(b.id)&&!cbSeenBallIds.has(b.id));
           for(const b of payload.balls){
@@ -296,7 +297,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function cbSyncBalls(now){
     if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<33)return;
     cbLastBallSync=now;
-    if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{balls:cbSerializeBalls()});
+    if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{seq:++cbBallSnapshotSeq,balls:cbSerializeBalls()});
   }
   function cbHandleMultiplayerDeath(){
     if(!cbMultiplayerActive||!cbAlive||cbMatchEnded)return;
