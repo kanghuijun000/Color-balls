@@ -231,13 +231,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
-  let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0;
+  let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbSeenBallIds=new Set();
   let cbAlive=true,cbDeaths=0,cbReviveTimer=null,cbMatchStart=0,cbActiveTime=0,cbCompetitiveResults={},cbMatchEnded=false,cbLastStatusSent='';
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
     if(cbGameSessionStarted||cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
     cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';
-    cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';
+    cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';cbLastBallSync=0;cbBallSeq=0;cbSeenBallIds=new Set();balls=[];
     if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
     reset();lives=1;updateHud();
     if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
@@ -266,6 +266,21 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           if(payload?.results)cbCompetitiveResults=payload.results;
           cbFinishMultiplayerMatch(payload?.reason||'게임 종료');
         })
+        .on('broadcast',{event:'balls'},({payload})=>{
+          if(cbUser?.id===cbRoom?.host_id||!Array.isArray(payload?.balls))return;
+          const receivedIds=new Set(payload.balls.map(b=>b.id));
+          balls=balls.filter(b=>receivedIds.has(b.id)&&!cbSeenBallIds.has(b.id));
+          for(const b of payload.balls){
+            if(!b||typeof b.id!=='string'||cbSeenBallIds.has(b.id))continue;
+            const local=balls.find(x=>x.id===b.id);
+            const values={...b,x:b.x*W,y:b.y*H,vx:b.vx*W,vy:b.vy*H,r:b.r*Math.min(W,H)};
+            if(local)Object.assign(local,values);else balls.push(values);
+          }
+        })
+        .on('broadcast',{event:'ball-eaten'},({payload})=>{
+          if(!payload?.id)return;
+          cbSeenBallIds.add(payload.id);balls=balls.filter(b=>b.id!==payload.id);
+        })
         .on('broadcast',{event:'leave'},({payload})=>{if(payload?.player_id)delete cbRemotePlayers[payload.player_id];})
         .subscribe();
     }
@@ -273,6 +288,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   }
   function cbBroadcast(event,payload){
     if(cbGameChannel)cbGameChannel.send({type:'broadcast',event,payload});
+  }
+  function cbSerializeBalls(){
+    return balls.slice(0,180).map(b=>({id:b.id,x:b.x/Math.max(1,W),y:b.y/Math.max(1,H),vx:b.vx/Math.max(1,W),vy:b.vy/Math.max(1,H),r:b.r/Math.max(1,Math.min(W,H)),color:b.color,kind:b.kind,age:b.age,phase:b.phase,turn:b.turn}));
+  }
+  function cbSyncBalls(now){
+    if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<100)return;
+    cbLastBallSync=now;
+    if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{balls:cbSerializeBalls()});
   }
   function cbHandleMultiplayerDeath(){
     if(!cbMultiplayerActive||!cbAlive||cbMatchEnded)return;
@@ -485,7 +508,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     const speed=(145+Math.min(210,elapsed*4.1)+Math.random()*55)*modeSettings[selectedMode].speed*ongoingGrowth;
     const color=chooseColor();
     const kind=elapsed>9&&Math.random()<Math.min(.48,elapsed*.012)?rand(3):0;
-    balls.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:9+Math.random()*5,color,kind,age:0,phase:Math.random()*Math.PI*2,turn:(Math.random()<.5?-1:1)*(45+Math.random()*95)});
+    balls.push({id:cbMultiplayerActive?('b'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)+'-'+(++cbBallSeq)):undefined,x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:9+Math.random()*5,color,kind,age:0,phase:Math.random()*Math.PI*2,turn:(Math.random()<.5?-1:1)*(45+Math.random()*95)});
   }
   function burst(x,y,color,count=18){
     for(let i=0;i<count;i++){
@@ -655,7 +678,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     const spawnInterval=Math.max(.075,.82*modeSettings[selectedMode].spawn/spawnGrowth);
     const extraChance=modeSettings[selectedMode].extra+(1-modeSettings[selectedMode].extra)*(elapsed/(elapsed+90));
     spawnClock+=dt;
-    while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(Math.random()<extraChance)spawnBall();}
+    if(!cbMultiplayerActive||cbUser?.id===cbRoom?.host_id){
+      while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(Math.random()<extraChance)spawnBall();}
+    }else spawnClock=Math.min(spawnClock,spawnInterval);
     // Smoothly follow pointer position while preserving a little inertia.
     player.x=Math.max(player.r,Math.min(W-player.r,player.x));
     player.y=Math.max(player.r+52,Math.min(H-player.r-28,player.y));
@@ -668,7 +693,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       const speedFactor=slowTimer>0?.5:1;
       b.x+=b.vx*dt*speedFactor;b.y+=b.vy*dt*speedFactor;
       const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
-      if(dist<b.r+player.r){balls.splice(i,1);hitBall(b);if(!running)return;continue;}
+      if(dist<b.r+player.r){balls.splice(i,1);if(cbMultiplayerActive&&b.id){cbSeenBallIds.add(b.id);cbBroadcast('ball-eaten',{id:b.id,player_id:cbUser?.id});}hitBall(b);if(!running)return;continue;}
       if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)balls.splice(i,1);
     }
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.08,dt);p.vy*=Math.pow(.08,dt);if(p.life<=0)particles.splice(i,1);}
@@ -718,7 +743,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     }
     ctx.restore();
     if(running&&countdown>0){ctx.save();ctx.fillStyle='#ffffff';ctx.font='1000 '+Math.min(100,W*.22)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.fillText(String(Math.ceil(countdown)),W/2,H/2);ctx.restore();}
-    if(performance.now()>toastUntil){    cbSendPosition(performance.now());
+    if(performance.now()>toastUntil){    cbSendPosition(performance.now());cbSyncBalls(performance.now());
 $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   function frame(now){
