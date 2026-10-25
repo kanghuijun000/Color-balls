@@ -1157,5 +1157,26 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   requestAnimationFrame(frame);
 })();
 </script>
+
+<script>
+// 설치된 PWA도 새 배포를 빠르게 확인하고 적용한다.
+if ('serviceWorker' in navigator) {
+  let cbReloadingForWorker = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (cbReloadingForWorker) return;
+    cbReloadingForWorker = true;
+    window.location.reload();
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } catch (error) {
+      console.warn('앱 업데이트 확인 실패:', error);
+    }
+  });
+}
+</script>
 </body>
 </html>
