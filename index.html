@@ -364,17 +364,15 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     if(now-cbLastHostPacketAt<CB_HOST_STALE_MS)return;
     cbHostTransferBusy=true;cbLastHostTransferAt=now;
     try{
-      const roomId=cbRoom.id,oldHost=cbRoom.host_id;
-      const fresh=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
-      if(fresh.error||!fresh.data||fresh.data.status!=='playing'||fresh.data.host_id!==oldHost)return;
-      const people=await cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true});
-      if(people.error||!people.data)return;
-      const candidates=people.data.filter(p=>p.player_id!==oldHost&&p.status!=='left');
-      if(!candidates.some(p=>p.player_id===cbUser?.id))return;
-      const candidate=candidates.find(p=>p.player_id===cbUser?.id);if(!candidate)return;
-      const moved=await cbClient.from('cb_rooms').update({host_id:candidate.player_id}).eq('id',roomId).eq('host_id',oldHost).select('host_id').maybeSingle();
+      const roomId=cbRoom.id;
+      const moved=await cbClient.rpc('cb_try_host_transfer',{p_room_id:roomId});
       if(moved.error){cbUpdateConnectionState('reconnecting');return;}
-      if(moved.data?.host_id===candidate.player_id){cbRoom={...cbRoom,host_id:candidate.player_id};cbHostIdAtGameStart=candidate.player_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbUpdateConnectionState('connected');}
+      if(moved.data===cbUser?.id){
+        const fresh=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
+        if(fresh.error||!fresh.data||fresh.data.host_id!==cbUser.id)return;
+        cbRoom=fresh.data;cbHostIdAtGameStart=cbUser.id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbUpdateConnectionState('connected');
+        cbMessage('방장 역할을 이어받았어. 경기 상태를 동기화 중이야.',true);
+      }
     }catch(e){cbUpdateConnectionState('reconnecting');}
     finally{cbHostTransferBusy=false;}
   }
@@ -984,6 +982,13 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
         if(!cbRoom||cbRoom.id!==roomId)return;
         cbPlayers=people.data||[];
         cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+        // The current host records a server-side heartbeat; participants may
+        // request takeover only through the guarded database function.
+        if(cbRoom.status==='playing'&&cbIsCurrentHost()){
+          const heartbeat=await cbClient.rpc('cb_host_heartbeat',{p_room_id:roomId});
+          if(heartbeat.error)cbUpdateConnectionState('reconnecting');
+          else cbUpdateConnectionState('connected');
+        }
         // The host may have returned before the other players. Re-check readiness
         // during polling so the room can become startable when the last player returns.
         if(cbMyPlayer&&cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'&&cbPlayers.length>=2&&cbPlayers.every(p=>p.status==='waiting')){
