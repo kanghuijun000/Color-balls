@@ -270,7 +270,8 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           if(cbUser?.id===cbRoom?.host_id||!Array.isArray(payload?.balls)||!Number.isFinite(payload?.seq)||payload.seq<=cbLastBallSnapshotSeq)return;
           cbLastBallSnapshotSeq=payload.seq;
           const receivedIds=new Set(payload.balls.map(b=>b.id));
-          balls=balls.filter(b=>receivedIds.has(b.id)&&!cbSeenBallIds.has(b.id));
+          if(!payload.truncated)balls=balls.filter(b=>receivedIds.has(b.id)&&!cbSeenBallIds.has(b.id));
+          else balls=balls.filter(b=>!cbSeenBallIds.has(b.id));
           for(const b of payload.balls){
             if(!b||typeof b.id!=='string'||cbSeenBallIds.has(b.id))continue;
             const local=balls.find(x=>x.id===b.id);
@@ -297,7 +298,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function cbSyncBalls(now){
     if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<33)return;
     cbLastBallSync=now;
-    if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{seq:++cbBallSnapshotSeq,balls:cbSerializeBalls()});
+    if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{seq:++cbBallSnapshotSeq,truncated:balls.length>140,balls:cbSerializeBalls()});
   }
   function cbHandleMultiplayerDeath(){
     if(!cbMultiplayerActive||!cbAlive||cbMatchEnded)return;
