@@ -246,11 +246,11 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbLastHostPacketAt=Date.now();cbLastRoomSyncAt=Date.now();cbConnectionState='connected';
     cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';cbLastBallSync=0;cbBallSeq=0;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbSeenBallIds=new Set();balls=[];
     if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
-    reset();lives=1;updateHud();
+    reset();lives=3;updateHud();
     if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
     score=0;combo=0;runGold=0;gold=gold;updateHud();
     $('score').parentElement.parentElement.classList.add('hidden');
-    $('centerStats').classList.add('hidden');
+    $('centerStats').classList.remove('hidden');
     $('gameDifficulty').textContent=cbModeNames[cbRoom.mode]+' · '+selectedMode.toUpperCase();
     $('multiOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');$('skillButtons').classList.add('hidden');cbRenderLivesHud();
     if(!cbGameChannel){
@@ -328,7 +328,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     cbBroadcast('death',{player_id:cbUser?.id,deaths:cbDeaths,deadAt:Date.now()});
     cbRenderLivesHud();
     if(cbRoom?.mode==='coop'){
-      cbMessage('탈락! 5초 뒤 부활할 수 있어.',true);
+      cbMessage('생명 3개를 모두 잃었어. 10초 뒤 부활할 수 있어.',true);
       if(cbReviveTimer)clearTimeout(cbReviveTimer);
       cbReviveTimer=setTimeout(()=>{
         cbReviveTimer=null;
@@ -337,10 +337,10 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           cbFinishMultiplayerMatch('모든 참가자가 동시에 탈락했어.');
           return;
         }
-        cbAlive=true;running=true;invulnerable=3;last=performance.now();
+        lives=3;updateHud();cbAlive=true;running=true;invulnerable=3;last=performance.now();
         cbLastStatusSent='playing';cbBroadcast('revive',{player_id:cbUser?.id});
         cbRenderLivesHud();cbMessage('부활! 3초 동안 무적이야.',true);
-      },5000);
+      },10000);
     }else{
       cbMessage('탈락했어. 다른 참가자의 경기를 관전 중이야.',true);
       cbEvaluateMatchEnd();
@@ -593,7 +593,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       burst(b.x,b.y,b.color,20);
       if(invulnerable>0)return;
       combo=0;shake=Math.min(12,shake+5);
-      if(cbMultiplayerActive){cbHandleMultiplayerDeath();return;}
+      if(cbMultiplayerActive){
+        if(cbRoom?.mode==='coop'){
+          lives=Math.max(0,lives-1);updateHud();
+          if(lives<=0){cbHandleMultiplayerDeath();return;}
+          invulnerable=1.25;announce('생명 감소!  '+lives+'개 남음',b.color);return;
+        }
+        cbHandleMultiplayerDeath();return;
+      }
       lives--;invulnerable=1.25;updateHud();
       if(lives<=0){gameOver();return;}
       announce('생명 감소!  '+lives+'개 남음',b.color);
