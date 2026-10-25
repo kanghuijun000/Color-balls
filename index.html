@@ -273,8 +273,9 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
           for(const b of payload.balls){
             if(!b||typeof b.id!=='string'||cbSeenBallIds.has(b.id))continue;
             const local=balls.find(x=>x.id===b.id);
-            const values={...b,x:b.x*W,y:b.y*H,vx:b.vx*W,vy:b.vy*H,r:b.r*Math.min(W,H)};
-            if(local)Object.assign(local,values);else balls.push(values);
+            const values={...b,x:b.x*W,y:b.y*H,vx:b.vx*W,vy:b.vy*H,r:b.r*Math.min(W,H),targetX:b.x*W,targetY:b.y*H,targetVx:b.vx*W,targetVy:b.vy*H};
+            if(local){local.targetX=values.targetX;local.targetY=values.targetY;local.targetVx=values.targetVx;local.targetVy=values.targetVy;local.color=values.color;local.kind=values.kind;local.age=values.age;local.phase=values.phase;local.turn=values.turn;}
+            else balls.push(values);
           }
         })
         .on('broadcast',{event:'ball-eaten'},({payload})=>{
@@ -293,7 +294,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     return balls.slice(0,180).map(b=>({id:b.id,x:b.x/Math.max(1,W),y:b.y/Math.max(1,H),vx:b.vx/Math.max(1,W),vy:b.vy/Math.max(1,H),r:b.r/Math.max(1,Math.min(W,H)),color:b.color,kind:b.kind,age:b.age,phase:b.phase,turn:b.turn}));
   }
   function cbSyncBalls(now){
-    if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<100)return;
+    if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<50)return;
     cbLastBallSync=now;
     if(cbUser?.id===cbRoom?.host_id)cbBroadcast('balls',{balls:cbSerializeBalls()});
   }
@@ -692,6 +693,12 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       if(b.kind===3){b.phase+=dt*2.8;b.vx+=Math.cos(b.phase)*b.turn*dt;b.vy+=Math.sin(b.phase)*b.turn*dt;}
       const speedFactor=slowTimer>0?.5:1;
       b.x+=b.vx*dt*speedFactor;b.y+=b.vy*dt*speedFactor;
+      if(cbMultiplayerActive&&cbUser?.id!==cbRoom?.host_id&&Number.isFinite(b.targetX)&&Number.isFinite(b.targetY)){
+        const blend=1-Math.exp(-dt*18);
+        b.x+=(b.targetX-b.x)*blend;b.y+=(b.targetY-b.y)*blend;
+        if(Number.isFinite(b.targetVx))b.vx+=(b.targetVx-b.vx)*blend;
+        if(Number.isFinite(b.targetVy))b.vy+=(b.targetVy-b.vy)*blend;
+      }
       const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
       if(dist<b.r+player.r){balls.splice(i,1);if(cbMultiplayerActive&&b.id){cbSeenBallIds.add(b.id);cbBroadcast('ball-eaten',{id:b.id,player_id:cbUser?.id});}hitBall(b);if(!running)return;continue;}
       if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)balls.splice(i,1);
