@@ -232,12 +232,22 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
   let selectedMode='easy';
   let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbBallSnapshotSeq=0,cbLastBallSnapshotSeq=-1,cbSeenBallIds=new Set();
-  let cbHostIdAtGameStart=null,cbHostEpoch=0,cbLastHostPacketAt=0,cbLastRoomSyncAt=0,cbHostTransferBusy=false,cbLastHostTransferAt=0,cbConnectionState='connecting';
+  let cbHostIdAtGameStart=null,cbHostEpoch=0,cbLastHostPacketAt=0,cbLastRoomSyncAt=0,cbHostTransferBusy=false,cbLastHostTransferAt=0,cbConnectionState='connecting',cbFailoverPaused=false,cbFailoverResumeAt=0,cbFailoverPauseStartedAt=0;
   const CB_REMOTE_STALE_MS=4500,CB_HOST_STALE_MS=6500,CB_SEEN_ID_LIMIT=3000;
   function cbRememberBall(id){if(!id)return;cbSeenBallIds.add(id);if(cbSeenBallIds.size>CB_SEEN_ID_LIMIT){const it=cbSeenBallIds.values();for(let i=0;i<500;i++){const n=it.next();if(n.done)break;cbSeenBallIds.delete(n.value);}}}
   function cbIsCurrentHost(){return !!cbUser?.id&&!!cbRoom?.host_id&&cbUser.id===cbRoom.host_id;}
   function cbIsActivePlayer(id){return !!id&&cbPlayers.some(p=>p.player_id===id);}
   function cbUpdateConnectionState(state){if(cbConnectionState===state)return;cbConnectionState=state;if(state==='connected')cbMessage('연결이 복구됐어.',true);else if(state==='reconnecting')cbMessage('연결이 불안정해. 경기 상태를 확인 중이야.',true);}
+  function cbPauseForHostFailover(){
+    if(!cbMultiplayerActive||cbMatchEnded||cbFailoverPaused)return;
+    cbFailoverPaused=true;cbFailoverPauseStartedAt=Date.now();cbFailoverResumeAt=0;
+    cbMessage('방장 연결 끊김 · 새 방장을 정하는 중이야. 게임이 일시 정지됐어.',true);
+  }
+  function cbScheduleFailoverResume(){
+    if(!cbMultiplayerActive||cbMatchEnded)return;
+    cbFailoverPaused=true;cbFailoverResumeAt=Date.now()+3000;
+    cbMessage('새 방장이 정해졌어. 상태를 맞춘 뒤 3초 후 다시 시작할게.',true);
+  }
   let cbAlive=true,cbDeaths=0,cbReviveTimer=null,cbMatchStart=0,cbActiveTime=0,cbCompetitiveResults={},cbMatchEnded=false,cbLastStatusSent='';
   const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
   function cbStartGameClient(){
@@ -371,7 +381,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
         const fresh=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
         if(fresh.error||!fresh.data||fresh.data.host_id!==cbUser.id)return;
         cbRoom=fresh.data;cbHostIdAtGameStart=cbUser.id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbUpdateConnectionState('connected');
-        cbMessage('방장 역할을 이어받았어. 경기 상태를 동기화 중이야.',true);
+        cbScheduleFailoverResume();
       }
     }catch(e){cbUpdateConnectionState('reconnecting');}
     finally{cbHostTransferBusy=false;}
@@ -826,7 +836,8 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   function frame(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
-    const shouldSimulate=(!paused&&(running||(cbMultiplayerActive&&!cbMatchEnded)));
+    if(cbFailoverPaused&&cbFailoverResumeAt&&now>=cbFailoverResumeAt){cbFailoverPaused=false;cbFailoverResumeAt=0;cbLastHostPacketAt=Date.now();last=now;cbMessage('게임을 다시 시작해!',true);}
+    const shouldSimulate=(!paused&&!cbFailoverPaused&&(running||(cbMultiplayerActive&&!cbMatchEnded)));
     if(shouldSimulate){if(countdown>0&&running){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
     draw();requestAnimationFrame(frame);
   }
@@ -969,7 +980,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
         if(!cbRoom||cbRoom.id!==roomId)return;
         const previousRoomStatus=cbRoom.status;
         const previousHost=cbRoom.host_id;cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbLastRoomSyncAt=Date.now();
-        if(previousHost!==cbRoom.host_id){cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();if(cbIsCurrentHost()){cbBallSnapshotSeq=0;cbMessage('방장 역할을 이어받았어. 경기 상태를 동기화 중이야.',true);}else cbMessage('방장이 변경됐어. 경기 상태를 동기화 중이야.',true);}
+        if(previousHost!==cbRoom.host_id){cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbScheduleFailoverResume();}
         if(previousRoomStatus==='playing'&&cbRoom.status==='waiting'&&cbMultiplayerActive){
           cbGameSessionStarted=false;cbStopMultiplayer();
           $('endOverlay').classList.add('hidden');$('multiOverlay').classList.remove('hidden');
@@ -1002,7 +1013,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
           return;
         }
         cbRenderLobby();
-        if(cbRoom.status==='playing'){cbStartGameClient();cbPruneStalePlayers();if(!cbIsCurrentHost())await cbTryTransferHost();}
+        if(cbRoom.status==='playing'){cbStartGameClient();if(!cbIsCurrentHost()&&Date.now()-cbLastHostPacketAt>=CB_HOST_STALE_MS)cbPauseForHostFailover();cbPruneStalePlayers();if(!cbIsCurrentHost())await cbTryTransferHost();}
       }catch(e){
         cbMessage('동기화 오류: '+(e.message||'연결을 확인해 줘.'),true);
       }finally{cbRoomPollBusy=false;}
