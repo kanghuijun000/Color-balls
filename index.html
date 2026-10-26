@@ -138,16 +138,13 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   #mainOverlay #startBtn,#mainOverlay #openMultiBtn{padding:7px;font-size:12px}
 }
 
-/* In-app orientation toggle: never rotate the page with CSS. */
-#orientationToggle{position:fixed;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);z-index:10000;display:flex;align-items:center;justify-content:center;gap:6px;min-width:78px;min-height:40px;padding:8px 12px;border:1px solid #3a4968;border-radius:13px;background:rgba(16,24,43,.96);color:#f2f5ff;font:700 13px/1 system-ui,sans-serif;box-shadow:0 4px 18px #0005;touch-action:manipulation;}
-#orientationToggle:active{transform:scale(.97)}
-@media (orientation:landscape){#orientationToggle{left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);}}
 
+/* Orientation controls live inside menus so they never cover game HUD or skills. */
+.orientationToggle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:42px;margin:8px 0 0;padding:10px 14px;border:1px solid #3a4968;border-radius:13px;background:#111b30;color:#eaf2ff;font:700 13px/1.2 system-ui,sans-serif;touch-action:manipulation}
+.orientationToggle:active{transform:scale(.99)}
 </style>
 </head>
 <body>
-<button id="orientationToggle" type="button" aria-label="화면 방향 변경" title="화면 방향 변경">↻ 가로</button>
-
 <canvas id="game"></canvas>
 <div id="hud" class="menu-hidden">
     <div class="top">
@@ -186,6 +183,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <button class="start" id="startBtn">혼자 플레이</button>
     <button class="secondary" id="openMultiBtn">친구와 플레이</button>
     <div class="small">터치 / 마우스 지원</div>
+    <button id="orientationToggle" class="orientationToggle" type="button">↻ 화면 방향 바꾸기</button>
   </div>
 </div>
 
@@ -275,6 +273,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <p class="desc">게임을 어떻게 할까?</p>
     <button class="start" id="resumeCountdownBtn">다시 시작</button>
     <button class="secondary" id="abandonBtn">나가기</button>
+    <button id="pauseOrientationToggle" class="orientationToggle" type="button">↻ 화면 방향 바꾸기</button>
   </div>
 </div>
 <div id="skillButtons" class="hidden"></div>
@@ -1292,52 +1291,44 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   requestAnimationFrame(frame);
 
   // Installed Android PWAs can lock orientation when the browser permits it.
-  const orientationButton=document.getElementById('orientationToggle');
+  const orientationButtons=[document.getElementById('orientationToggle'),document.getElementById('pauseOrientationToggle')].filter(Boolean);
   function cbCurrentOrientation(){
     return (screen.orientation?.type || (window.matchMedia('(orientation:landscape)').matches?'landscape':'portrait')).startsWith('landscape')?'landscape':'portrait';
   }
-  function cbUpdateOrientationButton(){
+  function cbUpdateOrientationButtons(message=''){
     const current=cbCurrentOrientation();
-    if(orientationButton){
-      orientationButton.textContent=current==='landscape'?'↻ 세로':'↻ 가로';
-      orientationButton.setAttribute('aria-label',current==='landscape'?'세로 화면으로 전환':'가로 화면으로 전환');
-      orientationButton.title=current==='landscape'?'세로 화면으로 전환':'가로 화면으로 전환';
-    }
+    orientationButtons.forEach(btn=>{btn.textContent=message || (current==='landscape'?'↻ 세로 화면으로 전환':'↻ 가로 화면으로 전환');});
   }
   async function cbSetOrientation(target){
     try{
-      if(screen.orientation?.lock){
+      if(!screen.orientation?.lock) throw new Error('orientation lock unsupported');
+      await screen.orientation.lock(target);
+      try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
+      cbUpdateOrientationButtons();
+      return true;
+    }catch(e){
+      try{
+        if(!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+        if(!screen.orientation?.lock) throw new Error('orientation lock unsupported');
         await screen.orientation.lock(target);
-        cbUpdateOrientationButton();
-        return true;
-      }
-    }catch(e){}
-    // Some installed browsers do not allow orientation locking from a web page.
-    // Keep the actual page unrotated and explain the browser limitation.
-    if(orientationButton){
-      orientationButton.textContent='↻ 방향 잠금 불가';
-      orientationButton.title='이 브라우저에서는 화면 방향 잠금을 지원하지 않아요.';
-      setTimeout(cbUpdateOrientationButton,1800);
-    }
-    return false;
-  }
-  if(orientationButton){
-    orientationButton.addEventListener('click',async()=>{
-      const target=cbCurrentOrientation()==='landscape'?'portrait':'landscape';
-      const ok=await cbSetOrientation(target);
-      if(ok){
         try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
+        cbUpdateOrientationButtons();
+        return true;
+      }catch(e2){
+        cbUpdateOrientationButtons('이 환경에서는 방향 전환을 지원하지 않아요');
+        setTimeout(()=>cbUpdateOrientationButtons(),2200);
+        return false;
       }
-    });
+    }
   }
-  window.addEventListener('orientationchange',cbUpdateOrientationButton);
-  screen.orientation?.addEventListener?.('change',cbUpdateOrientationButton);
-  cbUpdateOrientationButton();
+  orientationButtons.forEach(btn=>btn.addEventListener('click',()=>cbSetOrientation(cbCurrentOrientation()==='landscape'?'portrait':'landscape')));
+  window.addEventListener('orientationchange',()=>cbUpdateOrientationButtons());
+  screen.orientation?.addEventListener?.('change',()=>cbUpdateOrientationButtons());
+  cbUpdateOrientationButtons();
   try{
     const preferred=localStorage.getItem('cbPreferredOrientation');
-    if(preferred==='portrait'||preferred==='landscape') cbSetOrientation(preferred);
+    if(preferred==='portrait'||preferred==='landscape') screen.orientation?.lock?.(preferred).catch(()=>{});
   }catch(e){}
-  
   window.addEventListener('orientationchange',()=>{
     // Layout follows the actual viewport; no CSS rotation fallback.
   });
