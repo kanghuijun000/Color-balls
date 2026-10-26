@@ -126,18 +126,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   #mainOverlay .mode{padding:7px 4px}
   #mainOverlay #startBtn,#mainOverlay #openMultiBtn{padding:8px;font-size:12px}
 }
-@media (orientation:portrait) {
-  body::before{content:"휴대폰을 가로로 돌려 주세요";position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;text-align:center;font-size:clamp(20px,5vw,30px);font-weight:1000;color:#f5f7ff;background:#080b16}
-  body>*{visibility:hidden!important}
-  body::before{visibility:visible!important}
-}
-
-
-/* Landscape-first layout */
-#rotateNotice{display:none;position:fixed;inset:0;z-index:99999;background:#080b16;color:#f5f7ff;align-items:center;justify-content:center;text-align:center;padding:28px}
-#rotateNotice .rotateCard{max-width:340px;border:1px solid #334263;border-radius:22px;background:#11182a;padding:24px}
-#rotateNotice .rotateIcon{font-size:48px;line-height:1.2;margin-bottom:12px}
-@media(orientation:portrait){#rotateNotice{display:flex}}
+/* Landscape is enforced by the installed PWA manifest and orientation lock. */
 @media(orientation:landscape){
   #mainOverlay{padding:12px 24px}
   #mainOverlay .card{width:min(100%,940px);padding:8px 0;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);grid-template-areas:"eyebrow gold" "title records" "desc records" "rules actions" "rules start" "rules multi" "small small";column-gap:30px;align-content:center;align-items:center;min-height:calc(100dvh - 24px)}
@@ -1320,11 +1309,18 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   // Installed Android PWAs can lock orientation when the browser permits it.
   async function cbLockLandscape(){
     try{
+      if(screen.orientation?.type?.startsWith('landscape')) return;
       if(screen.orientation?.lock) await screen.orientation.lock('landscape');
     }catch(e){
-      // Manifest orientation still requests landscape for installed app windows.
+      // Android installed PWA should use manifest orientation; some browsers only
+      // permit orientation.lock after a user gesture.
     }
   }
+  // Retry from real user gestures because some Android browsers reject a lock
+  // during initial page load, even for an installed app.
+  ['pointerdown','touchstart','click','keydown'].forEach(type=>{
+    window.addEventListener(type,cbLockLandscape,{passive:true});
+  });
   cbLockLandscape();
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbLockLandscape();});
   window.addEventListener('pageshow',cbLockLandscape);
