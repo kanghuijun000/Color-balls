@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#080b16">
+<link rel="icon" type="image/svg+xml" href="./icon-256.svg">
+<link rel="apple-touch-icon" href="./icon-512.svg">
+<link rel="manifest" href="./manifest.json">
+<title>COLOR-BALLS</title>
+<style>
+:root{color-scheme:dark;--bg:#080b16;--panel:#11182a;--muted:#8994b2;--white:#f5f7ff}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--white);touch-action:none}
+canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:none;z-index:0}
+#hud{position:fixed;z-index:2;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top) + 4px) 5px calc(env(safe-area-inset-bottom) + 6px);display:flex;flex-direction:column;justify-content:space-between}
+.difficultyTag{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 52px);transform:translateX(-50%);padding:4px 9px;border:1px solid #283451;border-radius:7px;background:#10172ad9;color:#aebbd8;font-size:10px;font-weight:900;letter-spacing:.08em;pointer-events:none}.top{display:grid;grid-template-columns:minmax(0,1fr) auto 34px;gap:6px;align-items:start}.scoreStack{display:grid;gap:3px;justify-self:start;min-width:90px;background:#10172ad9;border:1px solid #283451;border-radius:8px;padding:5px 8px;backdrop-filter:blur(8px)}.scoreLine,.goldLine{display:flex;align-items:baseline;gap:5px;line-height:1.15;white-space:nowrap;font-size:12px;font-weight:800}.scoreLine span{color:#dce5ff}.scoreLine strong{font-size:17px;font-weight:1000;font-variant-numeric:tabular-nums}.goldLine{color:#ffe36a;font-size:11px}.goldLine strong{font-size:13px;font-variant-numeric:tabular-nums}.centerStats{display:flex;align-items:stretch;gap:5px}.miniStat{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:58px;padding:5px 7px;border:1px solid #283451;border-radius:8px;background:#10172ad9;backdrop-filter:blur(8px);line-height:1.1}.miniStat span{font-size:9px;color:#9da9c7;font-weight:800}.miniStat strong{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}.pill{width:34px;min-height:34px;border:1px solid #34415f;background:#11182bd9;color:#dbe4ff;border-radius:8px;padding:3px;font-weight:800;font-size:15px;pointer-events:auto}
+.bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:6px}.hint{font-size:10px;color:#9ca8c5;max-width:65%;line-height:1.3;text-shadow:0 2px 8px #000}.colorTag{display:flex;align-items:center;gap:5px;background:#10172ad9;border:1px solid #283451;border-radius:9px;padding:6px 8px;font-size:10px;font-weight:800}.dot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 8px currentColor}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding:22px;background:#050814a8;backdrop-filter:blur(8px);z-index:5}.card{width:min(100%,390px);background:linear-gradient(160deg,#17213a,#0c1222);border:1px solid #334263;border-radius:25px;padding:26px;box-shadow:0 24px 80px #0008}
+#mainOverlay{position:relative;inset:auto;display:block;min-height:100%;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 22px) 18px calc(env(safe-area-inset-bottom) + 22px);background:var(--bg);backdrop-filter:none;z-index:1}
+#mainOverlay .card{width:min(100%,480px);margin:0 auto;background:transparent;border:0;border-radius:0;padding:12px 0;box-shadow:none}
+#mainOverlay .title{font-size:clamp(35px,10vw,52px)}
+#mainOverlay .rules{margin-top:16px}
+#mainOverlay .record-panel{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 8px}
+#mainOverlay .record{border:1px solid #2a3650;border-radius:15px;background:#10172ad9;padding:13px}
+#mainOverlay .record-label{font-size:12px;color:#9da9c7;font-weight:800}
+#mainOverlay .record-value{font-size:25px;font-weight:1000;margin-top:4px;font-variant-numeric:tabular-nums}.recordWithDiff{position:relative;min-height:86px;padding-bottom:24px!important}.record-diff{position:absolute;right:10px;bottom:7px;font-size:9px;line-height:1;color:#7f91b8;font-weight:900;letter-spacing:.06em}.bestRecordButton{text-align:left;color:inherit;font:inherit;width:100%;cursor:pointer;appearance:none}.bestRecordButton:active{border-color:#65e8ff;background:#16243d}.bestRecordButton .record-label{display:block}
+#mainOverlay .home-gold{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin:4px 0 16px;border:1px solid #3a4563;border-radius:15px;background:#10172ad9}
+#mainOverlay .home-gold span{font-size:13px;font-weight:800;color:#aebbd8}
+#mainOverlay .home-gold strong{font-size:25px;font-weight:1000;color:#ffe36a;font-variant-numeric:tabular-nums}.eyebrow{color:#70e9ff;font-size:11px;font-weight:900;letter-spacing:.18em}.title{font-size:clamp(35px,10vw,52px);font-weight:1000;letter-spacing:-.06em;margin:5px 0 10px}.desc{color:#b5c0dc;font-size:14px;line-height:1.65;margin:0 0 20px}.rules{display:grid;gap:9px;margin:18px 0 22px}.rule{display:flex;align-items:center;gap:10px;font-size:13px;color:#e5eaff}.rule .symbol{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-weight:1000}.start{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(90deg,#54e8ff,#8a8bff);color:#07101f;font-size:16px;font-weight:1000;box-shadow:0 8px 30px #4fbcff33}.homeActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:18px 0 14px}.mode{border:1px solid #354361;border-radius:12px;padding:13px 5px;background:#101a2d;color:#b9c5e2;font-size:14px;font-weight:900}.mode.selected{border-color:#65e8ff;background:#183047;color:#70e9ff;box-shadow:0 0 0 1px #65e8ff55 inset}.secondary{width:100%;border:1px solid #354361;border-radius:15px;padding:14px;background:#111a2d;color:#dce5ff;font-size:15px;font-weight:900;margin-top:10px}.small{font-size:11px;color:#7886a6;text-align:center;margin-top:13px}
+.shopCard{position:relative;padding:25px 18px 20px}.shopClose{position:absolute;right:14px;top:14px;width:36px;height:36px;border:1px solid #3b4b6b;border-radius:11px;background:#111b30;color:#eaf2ff;font-size:24px;line-height:1;font-weight:700;z-index:1}.shopCard .eyebrow,.shopCard .title{padding-right:44px}.shopItem{display:grid;grid-template-columns:50px minmax(0,1fr);gap:9px 12px;padding:13px;border:1px solid #2a3650;border-radius:15px;background:#10172ad9;margin-top:10px}.shopItemIcon{grid-column:1;grid-row:1;width:50px;height:50px;display:grid;place-items:center;border-radius:15px;font-size:29px;line-height:1;background:linear-gradient(145deg,#254a67,#15243d);border:1px solid #4a7190;box-shadow:inset 0 1px 8px #ffffff12}.shopItemIcon.shield{background:linear-gradient(145deg,#285a70,#16243e);border-color:#4b9db5}.shopItemIcon.slow{background:linear-gradient(145deg,#51437a,#25213f);border-color:#8875c8}.shopItemInfo{grid-column:2;grid-row:1;min-width:0;align-self:center}.shopItemName{font-size:15px;font-weight:1000;margin-bottom:5px}.shopItemDesc{font-size:12px;line-height:1.5;color:#aebbd8}.buyBtn{grid-column:1/-1;width:100%;min-width:0;border:1px solid #52658b;border-radius:11px;background:#1a2943;color:#eaf2ff;padding:11px 8px;font-size:12px;font-weight:1000}.buyBtn:disabled{opacity:.48}.confirmText{font-size:14px;line-height:1.6;color:#c3cde6;margin:12px 0 18px}.confirmActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#skillButtons{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 18px);z-index:4;display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+.skillButton{position:relative;width:58px;height:58px;border:1px solid #52658b;border-radius:15px;background:#111b31ef;color:#eaf2ff;padding:5px;font-size:29px;font-weight:900;display:grid;place-items:center;box-shadow:0 5px 18px #0006}.skillButton:disabled{opacity:.72}.skillIcon{line-height:1}.skillCount{position:absolute;right:-5px;top:-5px;min-width:22px;height:22px;padding:0 5px;border:1px solid #7184aa;border-radius:11px;background:#263754;color:#fff;font-size:11px;display:grid;place-items:center}.skillKey{position:absolute;left:-5px;top:-5px;width:20px;height:20px;border:1px solid #7d8eaf;border-radius:7px;background:#0b1325;color:#fff;font-size:11px;display:grid;place-items:center}.skillCooldown{position:absolute;inset:0;border-radius:14px;background:#050914b8;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:1000}
+#toast{position:fixed;top:25%;left:50%;transform:translate(-50%,-50%);font-weight:1000;font-size:clamp(22px,6vw,36px);text-shadow:0 4px 22px #000;pointer-events:none;opacity:0;white-space:nowrap;transition:opacity .24s ease,transform .24s ease;will-change:opacity,transform}
+.hidden{display:none!important}
+#hud.menu-hidden{display:none!important}
+@media(min-width:700px){#hud{padding:8px 10px 10px}.top{grid-template-columns:minmax(0,1fr) auto 40px;gap:8px}.scoreStack{padding:6px 10px}.scoreLine strong{font-size:19px}.miniStat{min-width:68px;padding:6px 9px}.miniStat strong{font-size:17px}.pill{width:40px;min-height:36px}.hint{font-size:11px}}
+
+#mainOverlay .manualOpen{position:absolute;right:0;top:0;border:1px solid #354361;border-radius:11px;padding:10px 12px;background:#111a2d;color:#dce5ff;font-size:13px;font-weight:900}
+#manualOverlay{z-index:8;overflow-y:auto;place-items:start center;padding:18px}
+#manualOverlay .card{position:relative;width:min(100%,560px);max-height:calc(100dvh - 36px);overflow-y:auto;padding:24px 18px}
+.manualClose{position:sticky;float:right;top:0;width:38px;height:38px;margin:-8px -4px 0 10px;border:1px solid #3b4b6b;border-radius:11px;background:#111b30;color:#eaf2ff;font-size:25px;line-height:1;font-weight:700}
+.manualSection{margin:18px 0 0;padding:14px;border:1px solid #2a3650;border-radius:14px;background:#10172ad9}
+.manualSection h2{font-size:16px;margin:0 0 9px;color:#70e9ff}
+.manualSection p,.manualSection li{font-size:13px;line-height:1.65;color:#c3cde6}
+.manualSection ul{padding-left:19px;margin:6px 0}
+.manualDiff{display:grid;gap:9px;margin-top:10px}
+.manualDiff div{padding:10px;border-radius:10px;background:#18223a}
+.manualDiff strong{display:block;color:#f5f7ff;font-size:13px;margin-bottom:4px}
+.manualDiff span{display:block;color:#aebbd8;font-size:12px;line-height:1.55}
+
+#multiOverlay{z-index:9;overflow-y:auto;place-items:start center;padding:16px}
+#multiOverlay .card{position:relative;width:min(100%,520px);max-height:calc(100dvh - 32px);overflow-y:auto;padding:22px 18px}
+.multiClose{position:absolute;right:12px;top:12px;width:36px;height:36px;border:1px solid #3b4b6b;border-radius:11px;background:#111b30;color:#eaf2ff;font-size:24px}
+.multiField{display:flex;gap:8px;margin:10px 0}
+.multiField input{flex:1;min-width:0;border:1px solid #354361;border-radius:11px;background:#0b1325;color:#fff;padding:12px;font-size:15px}
+.multiBtn{border:1px solid #354361;border-radius:11px;background:#182640;color:#eaf2ff;padding:12px;font-weight:900}
+.multiOptions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.multiOptions button{border:1px solid #354361;border-radius:11px;padding:11px 6px;background:#101a2d;color:#b9c5e2;font-weight:900}
+.multiOptions button.selected{border-color:#65e8ff;background:#183047;color:#70e9ff}
+.multiPlayers{display:grid;gap:8px;margin:12px 0}
+.multiPlayer{display:flex;align-items:center;gap:10px;border:1px solid #2a3650;border-radius:12px;background:#10172ad9;padding:10px}
+.multiDot{width:17px;height:17px;border-radius:50%;box-shadow:0 0 10px currentColor;flex:none}
+.multiPlayerName{font-weight:900;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.multiPlayerMeta{margin-left:auto;color:#aebbd8;font-size:11px}
+.multiColorRow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px}
+.multiColor{width:40px;height:40px;border:3px solid #ffffff24;border-radius:50%;box-shadow:0 0 10px currentColor}
+.multiColor:disabled{opacity:.22;filter:grayscale(1)}
+.cbLivesHud{position:fixed;z-index:20;top:54px;left:50%;transform:translateX(-50%);display:flex;justify-content:center;gap:8px;max-width:96vw;overflow-x:auto;padding:6px 10px;border:1px solid #ffffff22;border-radius:14px;background:#0b1024dd;backdrop-filter:blur(8px);pointer-events:none}.cbLivesHud.hidden{display:none}.cbLifeItem{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;white-space:nowrap;font-size:11px;font-weight:900;color:#eaf1ff}.cbLifeHearts{display:flex;gap:2px;font-size:14px;line-height:1}.cbLifeHeart{font-size:14px;line-height:1}.multiNotice{font-size:12px;line-height:1.5;color:#aebbd8;margin:8px 0}
+.multiSection{border:1px solid #2a3650;border-radius:14px;background:#10172ad9;padding:13px;margin:12px 0}
+
+
+/* Landscape-first layout for installed app and browser fallback. */
+@media (orientation:landscape) {
+  #mainOverlay{padding: max(8px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));display:flex;align-items:center;justify-content:center}
+  #mainOverlay .card{width:min(100%,1000px);max-height:100%;overflow-y:auto;padding:8px 0;display:grid;grid-template-columns:minmax(220px,.85fr) minmax(280px,1fr);grid-template-areas:"brand gold" "brand desc" "brand rules" "brand records" "brand actions" "brand start" "brand multi" "brand small";column-gap:clamp(18px,4vw,52px);align-content:center;align-items:center}
+  #mainOverlay .eyebrow{grid-area:brand;align-self:start;position:absolute;top:8px;left:0}
+  #mainOverlay .title{grid-area:brand;align-self:center;font-size:clamp(44px,8vh,76px);line-height:.92;margin:0;max-width:100%;pointer-events:none}
+  #mainOverlay .home-gold{grid-area:gold;margin:0 0 6px;padding:8px 12px}
+  #mainOverlay .home-gold strong{font-size:21px}
+  #mainOverlay .desc{grid-area:desc;font-size:12px;line-height:1.4;margin:0 0 6px}
+  #mainOverlay .rules{grid-area:rules;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 6px}
+  #mainOverlay .rule{font-size:11px;gap:6px}
+  #mainOverlay .rule .symbol{width:20px;height:20px;flex:none}
+  #mainOverlay .record-panel{grid-area:records;gap:7px;margin:0 0 6px}
+  #mainOverlay .record{padding:8px 10px;border-radius:11px}
+  #mainOverlay .record-label{font-size:10px}
+  #mainOverlay .record-value{font-size:20px}
+  #mainOverlay .homeActions{grid-area:actions;margin:0 0 6px;gap:7px}
+  #mainOverlay .mode{padding:9px 5px;font-size:12px}
+  #mainOverlay #startBtn{grid-area:start;padding:11px;font-size:14px}
+  #mainOverlay #openMultiBtn{grid-area:multi;margin-top:6px;padding:10px;font-size:13px}
+  #mainOverlay .small{grid-area:small;margin-top:4px;font-size:10px}
+  #mainOverlay .manualOpen{top:0;right:0;padding:7px 10px;font-size:11px}
+  .overlay{padding:10px}
+  .card{max-height:calc(100dvh - 20px);overflow-y:auto}
+  #multiOverlay{padding:10px}
+  #multiOverlay .card{width:min(100%,900px);max-height:calc(100dvh - 20px);padding:16px 20px}
+  #multiLobby{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;align-items:start}
+  #multiLobby.hidden{display:none!important}
+  #multiLobby>.multiSection:first-child{grid-column:1}
+  #multiLobby>.multiSection:nth-child(2){grid-column:1}
+  #multiLobby>strong,#multiLobby>.multiPlayers{grid-column:2}
+  #multiLobby>.multiPlayers{margin:0}
+  #multiLobby>#startMultiBtn,#multiLobby>#leaveRoomBtn,#multiLobby>#lobbyMessage{grid-column:2}
+  .multiPlayers{grid-template-columns:1fr 1fr}
+  .multiSection{padding:10px;margin:4px 0}
+  .multiField{margin:6px 0}
+  .multiField input,.multiBtn{padding:9px}
+  .multiColorRow{margin:7px 0}
+  .cbLivesHud{top:calc(env(safe-area-inset-top) + 5px);gap:6px;padding:4px 8px}
+  .cbLifeItem{min-width:48px;font-size:10px}
+  .cbLifeHearts,.cbLifeHeart{font-size:12px}
+  .difficultyTag{top:calc(env(safe-area-inset-top) + 48px)}
+  #skillButtons{right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);flex-direction:row}
+  .skillButton{width:48px;height:48px;font-size:24px}
+  #toast{top:50%}
+}
+@media (orientation:landscape) and (max-height:430px) {
+  #mainOverlay .card{grid-template-columns:minmax(170px,.7fr) minmax(260px,1fr);column-gap:20px}
+  #mainOverlay .title{font-size:clamp(36px,9vh,54px)}
+  #mainOverlay .rules{grid-template-columns:1fr;gap:3px}
+  #mainOverlay .rule{font-size:10px}
+  #mainOverlay .home-gold{padding:6px 9px}
+  #mainOverlay .record{padding:5px 8px}
+  #mainOverlay .record-value{font-size:17px}
+  #mainOverlay .mode{padding:7px 4px}
+  #mainOverlay #startBtn,#mainOverlay #openMultiBtn{padding:8px;font-size:12px}
+}
+/* Landscape is enforced by the installed PWA manifest and orientation lock. */
+@media(orientation:landscape){
+  #mainOverlay{padding:12px 24px}
+  #mainOverlay .card{width:min(100%,940px);padding:8px 0;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);grid-template-areas:"eyebrow gold" "title records" "desc records" "rules actions" "rules start" "rules multi" "small small";column-gap:30px;align-content:center;align-items:center;min-height:calc(100dvh - 24px)}
+  #mainOverlay .eyebrow{grid-area:eyebrow;align-self:end}
+  #mainOverlay .home-gold{grid-area:gold;width:100%;margin:0 0 8px}
+  #mainOverlay .title{grid-area:title;font-size:clamp(32px,5vw,54px);margin:4px 0}
+  #mainOverlay .desc{grid-area:desc;font-size:13px;margin:0 0 4px;line-height:1.45}
+  #mainOverlay .rules{grid-area:rules;margin:6px 0;gap:8px}
+  #mainOverlay .record-panel{grid-area:records;width:100%;margin:0 0 8px;gap:8px}
+  #mainOverlay .homeActions{grid-area:actions;width:100%;margin:0 0 8px}
+  #mainOverlay #startBtn{grid-area:start}
+  #mainOverlay #openMultiBtn{grid-area:multi}
+  #mainOverlay .small{grid-area:small;margin:8px 0 0}
+  #mainOverlay .manualOpen{right:0;top:0;z-index:3}
+  #multiOverlay{padding:10px}
+  #multiOverlay .card{width:min(100%,980px);max-height:calc(100dvh - 20px);padding:18px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-content:start}
+  #multiOverlay .eyebrow,#multiOverlay #multiTitle,#multiOverlay #multiHome{grid-column:1/-1}
+  #multiOverlay #multiLobby{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+  #multiOverlay #multiLobby.hidden{display:none!important}
+  #multiOverlay #multiLobby>.multiSection:first-child,
+  #multiOverlay #multiLobby>strong,
+  #multiOverlay #multiLobby>.multiPlayers,
+  #multiOverlay #multiLobby>#lobbyMessage{grid-column:1/-1}
+  #multiOverlay #multiLobby>.multiSection:nth-child(2){grid-column:1}
+  #multiOverlay #multiLobby>.multiSection:nth-child(3){grid-column:2;grid-row:2}
+  #multiOverlay #multiLobby>#startMultiBtn,#multiOverlay #multiLobby>#leaveRoomBtn{align-self:end;margin-top:8px}
+  .cbLivesHud{top:8px;gap:14px;padding:5px 12px}
+  .difficultyTag{top:8px;left:auto;right:58px;transform:none}
+  #skillButtons{right:12px;bottom:12px;flex-direction:row}
+  #toast{top:50%}
+}
+
+
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud" class="menu-hidden">
+    <div class="top">
+      <div id="gameDifficulty" class="difficultyTag">NORMAL</div>
+    <div class="scoreStack">
+      <div class="scoreLine"><span>점수:</span><strong id="score">0</strong></div>
+      <div class="goldLine"><span>골드:</span><strong id="runGold">0</strong></div>
+    </div>
+    <div class="centerStats" id="centerStats">
+      <div class="miniStat"><span>시간</span><strong id="survivalTime">0:00</strong></div>
+      <div class="miniStat"><span>생명</span><strong id="lives">♥♥♥</strong></div>
+    </div>
+    <button class="pill" id="pauseBtn" aria-label="일시정지">Ⅱ</button>
+  </div>
+
+</div>
+<div id="cbLivesHud" class="cbLivesHud hidden" aria-label="플레이어 목숨"></div>
+<div id="toast"></div>
+<div class="overlay" id="mainOverlay">
+  <button class="manualOpen" id="openManualBtn" type="button">설명서</button>
+  <div class="card">
+    <div class="eyebrow">REACTION · COLOR · SURVIVAL</div>
+    <div class="home-gold"><span>보유 골드</span><strong id="homeGold">0</strong></div>
+    <div class="title">COLOR<br><span style="color:#6beaff">BALLS</span></div>
+    <p class="desc">같은 색 공을 맞혀 점수를 쌓고, 다른 색 공은 피해서 최고 기록에 도전해 봐.</p>
+    <div class="rules">
+      <div class="rule"><span class="symbol" style="background:#63eaff;color:#07101f">✓</span> 같은 색 공은 점수 획득</div>
+      <div class="rule"><span class="symbol" style="background:#ff5d87;color:#240713">!</span> 다른 색 공에 맞으면 생명 1개 감소 (총 3개)</div>
+      <div class="rule"><span class="symbol" style="background:#26334f;color:#d9e4ff">↔</span> 화면을 드래그해 내 공을 움직여</div>
+    </div>
+    <div class="record-panel">
+      <div class="record recordWithDiff"><div class="record-label">이전 게임 점수</div><div class="record-value" id="homeLast">0</div><div class="record-diff" id="homeLastDiff">EASY</div></div>
+      <button class="record bestRecordButton recordWithDiff" id="cycleBestBtn" type="button" aria-label="난이도별 최고 점수 보기"><span class="record-label">최고 점수</span><span class="record-value" id="homeBest">0</span><span class="record-diff" id="homeBestDiff">EASY</span></button>
+    </div>
+    <div class="homeActions"><button class="mode cycleMode" id="cycleModeBtn">EASY</button><button class="mode shopMode" id="openShopBtn">상점</button></div>
+    <button class="start" id="startBtn">혼자 플레이</button>
+    <button class="secondary" id="openMultiBtn">친구와 플레이</button>
+    <div class="small">터치 / 마우스 지원</div>
+  </div>
+</div>
+
+
+<div class="overlay hidden" id="multiOverlay">
+  <div class="card">
+    <button class="multiClose" id="multiCloseBtn" aria-label="멀티플레이 닫기">×</button>
+    <div class="eyebrow">COLOR-BALLS ONLINE</div>
+    <div class="title" id="multiTitle">친구와 플레이</div>
+    <div id="multiHome">
+      <p class="desc">방을 만들거나 친구에게 받은 방 코드로 참가해.</p>
+      <button class="start" id="createRoomBtn">방 만들기</button>
+      <div class="multiField"><input id="joinCodeInput" maxlength="6" placeholder="방 코드 6자리" autocomplete="off"><button class="multiBtn" id="joinRoomBtn">참가</button></div>
+      <div class="multiNotice" id="multiMessage">최대 4명까지 함께 플레이할 수 있어.</div>
+    </div>
+    <div id="multiLobby" class="hidden">
+      <div class="multiSection">
+        <div class="multiNotice">방 코드</div>
+        <div class="multiField"><input id="roomCodeDisplay" readonly><button class="multiBtn" id="copyRoomCodeBtn">복사</button></div>
+        <div class="multiNotice" id="roomStatusText">대기 중</div>
+      </div>
+      <div class="multiSection">
+        <strong>게임 모드</strong>
+        <div class="multiOptions"><button id="coopModeBtn">협동 생존</button><button id="competitiveModeBtn">최후의 생존자</button></div>
+        <strong>난이도</strong>
+        <div class="multiOptions"><button data-multidiff="easy">EASY</button><button data-multidiff="normal">NORMAL</button><button data-multidiff="hard">HARD</button><button data-multidiff="extreme">EXTREME</button></div>
+        <div class="multiNotice" id="hostOnlyText">방장만 모드와 난이도를 바꿀 수 있어.</div>
+      </div>
+      <div class="multiSection">
+        <strong>내 공 색상</strong>
+        <div class="multiColorRow" id="multiColorChoices"></div>
+        <div class="multiNotice">이미 다른 사람이 선택한 색은 고를 수 없어.</div>
+      </div>
+      <strong>참가자 <span id="multiPlayerCount">0/4</span></strong>
+      <div class="multiPlayers" id="multiPlayerList"></div>
+      <button class="start" id="startMultiBtn">게임 시작</button>
+      <button class="secondary" id="leaveRoomBtn">대기실 나가기</button>
+      <div class="multiNotice" id="lobbyMessage"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="manualOverlay">
+  <div class="card">
+    <button class="manualClose" id="closeManualBtn" aria-label="설명서 닫기">×</button>
+    <div class="eyebrow">COLOR-BALLS GUIDE</div>
+    <div class="title">게임 설명서</div>
+    <p class="desc">게임의 목표와 규칙, 난이도별 변화, 상점 아이템의 구매와 사용법을 확인해 봐.</p>
+    <section class="manualSection"><h2>1. 게임 목표와 조작</h2><p>내 공은 시작할 때 무작위 색으로 정해져. 화면을 터치하거나 마우스로 움직여 내 공을 조종하고, 같은 색 공을 맞혀 점수와 골드를 모으면서 오래 생존하는 것이 목표야.</p><ul><li>같은 색 공에 닿으면 공을 먹고 점수를 얻으며 골드 1개를 받아.</li><li>다른 색 공에 닿으면 생명이 1개 줄어들어. 생명은 총 3개이고 모두 잃으면 게임이 끝나.</li><li>공을 연속으로 먹으면 콤보가 쌓여 점수 배수가 올라가. 다른 색 공에 맞으면 콤보가 초기화돼.</li><li>생존 시간이 길어질수록 기본 획득 점수와 공의 속도가 증가해.</li></ul></section>
+    <section class="manualSection"><h2>2. 난이도별 규칙</h2><p>시작 화면의 난이도 버튼을 눌러 EASY → NORMAL → HARD → EXTREME 순서로 변경할 수 있어. 난이도는 공의 등장 간격과 이동 속도, 추가 공 등장 확률에 영향을 줘.</p><div class="manualDiff"><div><strong>EASY · 쉬움</strong><span>공이 비교적 천천히 등장하고 이동 속도도 낮아. 추가 공이 나올 확률도 가장 낮아서 조작과 규칙을 익히기 좋아.</span></div><div><strong>NORMAL · 보통</strong><span>등장 간격과 이동 속도가 쉬움보다 빨라지고, 시간이 지나면 추가 공이 등장할 가능성도 조금 높아져.</span></div><div><strong>HARD · 어려움</strong><span>공이 더 빠르게 접근하고 등장 간격도 짧아져. 추가 공 등장 확률이 높아 여러 공의 움직임을 동시에 살펴야 해.</span></div><div><strong>EXTREME · 극한</strong><span>공이 가장 자주, 빠르게 등장하고 추가 공도 많이 나와. 시간이 흐를수록 공의 속도와 밀도가 서서히 높아져 순간적인 회피 판단이 중요해.</span></div></div><p>모든 난이도에서 생명은 3개로 시작하고, 같은 색 공을 먹는 기본 규칙은 같아.</p></section>
+    <section class="manualSection"><h2>3. 점수와 골드</h2><ul><li>같은 색 공을 먹을 때 기본 점수를 얻고, 생존 시간이 길수록 기본 점수가 조금씩 높아져.</li><li>콤보가 올라가면 점수 배수가 증가해. 콤보 배수는 최대 12배야.</li><li>같은 색 공을 먹을 때마다 골드 1개를 획득해. 골드는 게임 중 상점에서 아이템을 사는 데 사용해.</li><li>게임이 끝나면 이번 점수와 최고 점수, 생존 시간, 먹은 공 수를 확인할 수 있어.</li></ul></section>
+    <section class="manualSection"><h2>4. 아이템 구매와 사용</h2><p>시작 화면의 상점 버튼을 눌러 아이템을 구매해. 각 스킬은 종류별 최대 3개까지 보유할 수 있고, 구매할 때 골드 30개가 필요해. 구매 버튼을 누른 뒤 확인을 선택하면 골드가 차감되고 스킬이 추가돼.</p><ul><li><strong>🛡️ 3초 무적:</strong> 게임 중 방패 버튼을 누르면 3초 동안 공에 맞아도 생명이 줄지 않아.</li><li><strong>🐢 5초 슬로우:</strong> 거북이 버튼을 누르면 5초 동안 모든 공의 이동 속도가 50%로 낮아져.</li><li>스킬을 사용하면 해당 스킬은 1개 소모되고, 다음 사용까지 5초의 쿨타임이 있어. 보유 수가 없거나 쿨타임 중이면 사용할 수 없어.</li><li>컴퓨터에서는 키보드 1번으로 첫 번째 스킬, 2번으로 두 번째 스킬을 사용할 수도 있어.</li></ul></section>
+    <section class="manualSection"><h2>5. 일시정지와 종료</h2><p>게임 화면의 Ⅱ 버튼으로 일시정지할 수 있어. 다시 시작을 누르면 3초 카운트다운 후 이어지고, 나가기를 선택하면 시작 화면으로 돌아가. 게임 오버 화면의 다시 플레이로 재도전하거나 나가기로 시작 화면에 돌아올 수 있어.</p></section>
+    <section class="manualSection"><h2>6. 멀티플레이 규칙</h2><ul><li>친구와 플레이에서 방을 만들거나 6자리 방 코드로 참가할 수 있고, 최대 4명이 함께할 수 있어.</li><li>각 참가자는 서로 다른 공 색상을 선택해. 방장만 게임 모드와 난이도를 바꾸고 게임을 시작할 수 있어.</li><li>협동 생존에서는 함께 살아남는 것이 목표이고, 최후의 생존자 모드에서는 마지막까지 살아남는 것이 목표야.</li><li>멀티플레이 중에는 상점 스킬 아이템을 사용할 수 없어. 스킬 버튼과 키보드 1·2 단축키도 비활성화돼.</li><li>게임 도중 연결이 끊기면 잠시 재연결을 기다려. 제한 시간 안에 돌아오지 않은 참가자는 경기에서 제외될 수 있어.</li><li>경기가 끝나면 참가자들이 대기실로 돌아온 뒤 방장이 다음 경기를 시작할 수 있어. 대기실을 나가려면 ‘대기실 나가기’를 눌러.</li></ul></section>
+  </div>
+</div>
+
+<div class="overlay hidden" id="shopOverlay">
+  <div class="card shopCard">
+    <button class="shopClose" id="closeShopBtn" aria-label="상점 닫기">×</button>
+    <div class="eyebrow">COLOR-BALLS SHOP</div>
+    <div class="title">상점</div>
+    <p class="desc">스킬은 종류별 최대 3개까지 보유할 수 있어. 사용하면 다음 사용까지 5초의 쿨타임이 있어.</p>
+    <div class="home-gold"><span>보유 골드</span><strong id="shopGold">0</strong></div>
+    <div class="shopItem">
+      <div class="shopItemIcon shield" aria-hidden="true">🛡️</div><div class="shopItemInfo"><div class="shopItemName">3초 무적</div><div class="shopItemDesc">사용 후 3초 동안 공에 맞아도 생명이 줄지 않아.<br>보유 <strong id="shieldOwned">0 / 3</strong></div></div>
+      <button class="buyBtn" id="buyShieldBtn">30 골드<br>구매</button>
+    </div>
+    <div class="shopItem">
+      <div class="shopItemIcon slow" aria-hidden="true">🐢</div><div class="shopItemInfo"><div class="shopItemName">5초 슬로우</div><div class="shopItemDesc">모든 공의 이동 속도를 5초 동안 50% 낮춰.<br>보유 <strong id="slowOwned">0 / 3</strong></div></div>
+      <button class="buyBtn" id="buySlowBtn">30 골드<br>구매</button>
+    </div>
+  </div>
+</div>
+<div class="overlay hidden" id="buyConfirmOverlay">
+  <div class="card">
+    <div class="eyebrow">PURCHASE CONFIRM</div>
+    <div class="title" id="confirmTitle">스킬 구매</div>
+    <p class="confirmText" id="confirmMessage">30 골드를 사용해 구매할까?</p>
+    <div class="confirmActions"><button class="secondary" id="cancelBuyBtn" style="margin-top:0">취소</button><button class="start" id="confirmBuyBtn">구매하기</button></div>
+  </div>
+</div>
+<div class="overlay hidden" id="pauseOverlay">
+  <div class="card">
+    <div class="eyebrow">GAME PAUSED</div>
+    <div class="title">일시정지</div>
+    <p class="desc">게임을 어떻게 할까?</p>
+    <button class="start" id="resumeCountdownBtn">다시 시작</button>
+    <button class="secondary" id="abandonBtn">나가기</button>
+  </div>
+</div>
+<div id="skillButtons" class="hidden"></div>
+<div class="overlay hidden" id="endOverlay">
+  <div class="card">
+    <div class="eyebrow" id="endEyebrow">RUN ENDED</div>
+    <div class="title" id="endTitle">GAME OVER</div>
+    <div class="rules">
+      <div class="rule">생존 시간 <strong id="finalTime" style="margin-left:auto;font-size:22px">0초</strong></div>
+      <div class="rule">먹은 공 수 <strong id="finalEaten" style="margin-left:auto;font-size:22px">0</strong></div>
+      <div class="rule">이번 점수 <strong id="finalScore" style="margin-left:auto;font-size:22px">0</strong></div>
+      <div class="rule">최고 점수 <strong id="bestScore" style="margin-left:auto;font-size:22px">0</strong></div>
+    </div>
+    <button class="start" id="retryBtn">다시 플레이</button>
+    <button class="secondary" id="exitBtn">나가기</button>
+    <div class="small">공의 흐름을 읽고 다음 기록에 도전해 봐</div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const colors = [
+    {name:'CYAN', hex:'#5be7ff', glow:'#1aa9df'},
+    {name:'PINK', hex:'#ff5c91', glow:'#d42d70'},
+    {name:'YELLOW', hex:'#ffe36a', glow:'#d6a92a'},
+    {name:'VIOLET', hex:'#a78bff', glow:'#7048d9'},
+    {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
+  ];
+  let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
+  let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
+  let selectedMode='easy';
+  const recordModes=['easy','normal','hard','extreme'];
+  const modeLabels={easy:'EASY',normal:'NORMAL',hard:'HARD',extreme:'EXTREME'};
+  let bestViewMode='easy',lastMode='easy',bestByMode={easy:0,normal:0,hard:0,extreme:0};
+  let cbMultiplayerActive=false,cbGameSessionStarted=false,cbGameChannel=null,cbRemotePlayers={},cbLastPositionSend=0,cbLastBallSync=0,cbBallSeq=0,cbBallSnapshotSeq=0,cbLastBallSnapshotSeq=-1,cbSeenBallIds=new Set();
+  let cbHostIdAtGameStart=null,cbHostEpoch=0,cbLastHostPacketAt=0,cbLastRoomSyncAt=0,cbHostTransferBusy=false,cbLastHostTransferAt=0,cbConnectionState='connecting',cbFailoverPaused=false,cbFailoverResumeAt=0,cbFailoverPauseStartedAt=0;
+  const CB_REMOTE_STALE_MS=4000,CB_HOST_STALE_MS=4000,CB_SEEN_ID_LIMIT=3000;
+  function cbRememberBall(id){if(!id)return;cbSeenBallIds.add(id);if(cbSeenBallIds.size>CB_SEEN_ID_LIMIT){const it=cbSeenBallIds.values();for(let i=0;i<500;i++){const n=it.next();if(n.done)break;cbSeenBallIds.delete(n.value);}}}
+  function cbIsCurrentHost(){return !!cbUser?.id&&!!cbRoom?.host_id&&cbUser.id===cbRoom.host_id;}
+  function cbIsActivePlayer(id){return !!id&&cbPlayers.some(p=>p.player_id===id);}
+  function cbUpdateConnectionState(state){if(cbConnectionState===state)return;cbConnectionState=state;if(state==='connected')cbMessage('연결이 복구됐어.',true);else if(state==='reconnecting')cbMessage('연결이 불안정해. 경기 상태를 확인 중이야.',true);}
+  let cbAlive=true,cbDeaths=0,cbReviveTimer=null,cbMatchStart=0,cbActiveTime=0,cbCompetitiveResults={},cbMatchEnded=false,cbLastStatusSent='';
+  const cbColorIndex={cyan:0,pink:1,yellow:2,violet:3,lime:4};
+  function cbStartGameClient(){
+    if(cbGameSessionStarted||cbMultiplayerActive||!cbRoom||cbRoom.status!=='playing'||!cbMyPlayer)return;
+    cbGameSessionStarted=true;cbMultiplayerActive=true;selectedMode=cbRoom.difficulty||'normal';cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbLastHostPacketAt=Date.now();cbLastRoomSyncAt=Date.now();cbConnectionState='connected';
+    cbAlive=true;cbDeaths=0;cbActiveTime=0;cbMatchStart=Date.now();cbCompetitiveResults={};cbMatchEnded=false;cbLastStatusSent='playing';cbLastBallSync=0;cbBallSeq=0;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbSeenBallIds=new Set();balls=[];
+    if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
+    reset();lives=3;updateHud();
+    if(player){player.color=cbColorIndex[cbMyPlayer.ball_color]??0;player.trail=[];}
+    score=0;combo=0;runGold=0;gold=gold;updateHud();
+    $('score').parentElement.parentElement.classList.add('hidden');
+    $('lives').parentElement.classList.add('hidden');
+    $('centerStats').classList.remove('hidden');
+    $('gameDifficulty').textContent=cbModeNames[cbRoom.mode]+' · '+selectedMode.toUpperCase();
+    $('multiOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');$('skillButtons').classList.add('hidden');cbRenderLivesHud();
+    if(!cbGameChannel){
+      cbGameChannel=cbClient.channel('cb-game-'+cbRoom.id,{config:{broadcast:{self:false}}})
+        .on('broadcast',{event:'position'},({payload})=>{
+          if(!payload||payload.player_id===cbUser?.id||!cbIsActivePlayer(payload.player_id))return;
+          const receivedAt=Date.now();cbRemotePlayers[payload.player_id]={...payload,_receivedAt:receivedAt};
+          if(payload.player_id===cbRoom?.host_id)cbLastHostPacketAt=receivedAt;
+          cbRenderLivesHud();
+        })
+        .on('broadcast',{event:'death'},({payload})=>{
+          if(!payload?.player_id)return;
+          cbRemotePlayers[payload.player_id]={...(cbRemotePlayers[payload.player_id]||{}),alive:false,lives:payload.lives??0,deadAt:payload.deadAt,deaths:payload.deaths};
+          cbRenderLivesHud();cbEvaluateMatchEnd();
+        })
+        .on('broadcast',{event:'revive'},({payload})=>{
+          if(!payload?.player_id)return;
+          cbRemotePlayers[payload.player_id]={...(cbRemotePlayers[payload.player_id]||{}),alive:true,lives:payload.lives??3};
+          cbRenderLivesHud();
+        })
+        .on('broadcast',{event:'match-end'},({payload})=>{
+          if(payload?.results)cbCompetitiveResults=payload.results;
+          cbFinishMultiplayerMatch(payload?.reason||'게임 종료');
+        })
+        .on('broadcast',{event:'balls'},({payload})=>{
+          if(cbIsCurrentHost()||!Array.isArray(payload?.balls)||!Number.isFinite(payload?.seq)||payload.seq<=cbLastBallSnapshotSeq)return;
+          if(payload.host_id&&payload.host_id!==cbRoom?.host_id)return;
+          cbLastHostPacketAt=Date.now();cbLastBallSnapshotSeq=payload.seq;
+          const receivedIds=new Set(payload.balls.map(b=>b.id));
+          if(!payload.truncated)balls=balls.filter(b=>receivedIds.has(b.id)&&!cbSeenBallIds.has(b.id));
+          else balls=balls.filter(b=>!cbSeenBallIds.has(b.id));
+          for(const b of payload.balls){
+            if(!b||typeof b.id!=='string'||cbSeenBallIds.has(b.id))continue;
+            const local=balls.find(x=>x.id===b.id);
+            const values={...b,x:b.x*W,y:b.y*H,vx:b.vx*W,vy:b.vy*H,r:b.r*Math.min(W,H),targetX:b.x*W,targetY:b.y*H,targetVx:b.vx*W,targetVy:b.vy*H};
+            if(local){local.targetX=values.targetX;local.targetY=values.targetY;local.targetVx=values.targetVx;local.targetVy=values.targetVy;local.color=values.color;local.kind=values.kind;local.age=values.age;local.phase=values.phase;local.turn=values.turn;}
+            else balls.push(values);
+          }
+        })
+        .on('broadcast',{event:'ball-hit'},({payload})=>{
+          if(!payload?.id||!payload?.player_id)return;
+          let hit=balls.find(b=>b.id===payload.id);
+          if(!hit&&payload.ball&&typeof payload.ball==='object'){
+            const b=payload.ball;
+            hit={id:payload.id,x:(Number(b.x)||0)*W,y:(Number(b.y)||0)*H,vx:(Number(b.vx)||0)*W,vy:(Number(b.vy)||0)*H,r:(Number(b.r)||0)*Math.min(W,H),color:Number(b.color)||0,kind:Number(b.kind)||0,age:Number(b.age)||0,phase:Number(b.phase)||0,turn:Number(b.turn)||0};
+          }
+          cbRememberBall(payload.id);balls=balls.filter(b=>b.id!==payload.id);
+          if(payload.player_id===cbUser?.id&&hit&&cbMultiplayerActive&&cbAlive&&!cbMatchEnded)hitBall(hit);
+        })
+        .on('broadcast',{event:'ball-eaten'},({payload})=>{
+          if(!payload?.id)return;
+          cbRememberBall(payload.id);balls=balls.filter(b=>b.id!==payload.id);
+        })
+        .on('broadcast',{event:'leave'},({payload})=>{if(payload?.player_id)delete cbRemotePlayers[payload.player_id];})
+        .subscribe();
+    }
+    cbMessage('게임 시작! 다른 플레이어의 공 위치가 실시간으로 표시돼.',true);
+  }
+  function cbBroadcast(event,payload){
+    if(!cbGameChannel||!cbMultiplayerActive)return;
+    const envelope={...(payload||{}),sender_id:cbUser?.id,host_id:cbRoom?.host_id,host_epoch:cbHostEpoch,sent_at:Date.now()};
+    try{const sent=cbGameChannel.send({type:'broadcast',event,payload:envelope});if(sent&&typeof sent.catch==='function')sent.catch(()=>cbUpdateConnectionState('reconnecting'));}catch(e){cbUpdateConnectionState('reconnecting');}
+  }
+  function cbSerializeBalls(){
+    return balls.slice(0,140).map(b=>({id:b.id,x:b.x/Math.max(1,W),y:b.y/Math.max(1,H),vx:b.vx/Math.max(1,W),vy:b.vy/Math.max(1,H),r:b.r/Math.max(1,Math.min(W,H)),color:b.color,kind:b.kind,age:b.age,phase:b.phase,turn:b.turn}));
+  }
+  function cbSyncBalls(now){
+    if(!cbMultiplayerActive||!cbGameChannel||now-cbLastBallSync<33)return;
+    cbLastBallSync=now;
+    if(cbIsCurrentHost())cbBroadcast('balls',{host_id:cbUser.id,host_epoch:cbHostEpoch,seq:++cbBallSnapshotSeq,truncated:balls.length>140,balls:cbSerializeBalls()});
+  }
+  function cbHandleMultiplayerDeath(){
+    if(!cbMultiplayerActive||!cbAlive||cbMatchEnded)return;
+    cbAlive=false;running=false;paused=false;cbDeaths++;cbLastStatusSent='dead';
+    cbBroadcast('death',{player_id:cbUser?.id,deaths:cbDeaths,lives:0,deadAt:Date.now()});
+    cbRenderLivesHud();
+    if(cbRoom?.mode==='coop'){
+      cbMessage('생명 3개를 모두 잃었어. 10초 뒤 부활할 수 있어.',true);
+      if(cbReviveTimer)clearTimeout(cbReviveTimer);
+      cbReviveTimer=setTimeout(()=>{
+        cbReviveTimer=null;
+        if(!cbMultiplayerActive||cbMatchEnded)return;
+        if(!cbAnyAlive()){
+          cbFinishMultiplayerMatch('모든 참가자가 동시에 탈락했어.');
+          return;
+        }
+        lives=3;updateHud();cbAlive=true;running=true;invulnerable=3;last=performance.now();
+        cbLastStatusSent='playing';cbBroadcast('revive',{player_id:cbUser?.id,lives:3});
+        cbRenderLivesHud();cbMessage('부활! 3초 동안 무적이야.',true);
+      },10000);
+    }else{
+      cbMessage('탈락했어. 다른 참가자의 경기를 관전 중이야.',true);
+      cbEvaluateMatchEnd();
+    }
+  }
+  function cbAnyAlive(){
+    const now=Date.now();
+    return cbAlive||Object.values(cbRemotePlayers).some(p=>p.alive!==false&&now-(p._receivedAt||now)<CB_REMOTE_STALE_MS);
+  }
+  function cbPruneStalePlayers(){
+    if(!cbMultiplayerActive)return;
+    const now=Date.now();let changed=false;
+    for(const [id,p] of Object.entries(cbRemotePlayers)){
+      if(!cbIsActivePlayer(id)){delete cbRemotePlayers[id];changed=true;continue;}
+      if(now-(p._receivedAt||now)>CB_REMOTE_STALE_MS&&p.alive!==false){cbRemotePlayers[id]={...p,alive:false,_stale:true};changed=true;}
+    }
+    if(changed){cbRenderLivesHud();if(cbIsCurrentHost())cbEvaluateMatchEnd();}
+  }
+  async function cbTryTransferHost(){
+    if(!cbMultiplayerActive||!cbRoom||!cbClient||cbHostTransferBusy||cbIsCurrentHost())return;
+    const now=Date.now();if(now-cbLastHostTransferAt<CB_HOST_STALE_MS)return;
+    if(now-cbLastHostPacketAt<CB_HOST_STALE_MS)return;
+    cbHostTransferBusy=true;cbLastHostTransferAt=now;
+    try{
+      const roomId=cbRoom.id;
+      const moved=await cbClient.rpc('cb_try_host_transfer',{p_room_id:roomId});
+      if(moved.error){cbUpdateConnectionState('reconnecting');return;}
+      if(moved.data===cbUser?.id){
+        const fresh=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
+        if(fresh.error||!fresh.data||fresh.data.host_id!==cbUser.id)return;
+        cbRoom=fresh.data;cbHostIdAtGameStart=cbUser.id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();cbUpdateConnectionState('connected');
+        cbMessage('방장 연결이 끊겨 역할을 이어받았어. 경기를 계속 진행해.',true);
+      }
+    }catch(e){cbUpdateConnectionState('reconnecting');}
+    finally{cbHostTransferBusy=false;}
+  }
+  function cbEvaluateMatchEnd(){
+    if(!cbMultiplayerActive||cbMatchEnded||!cbRoom)return;
+    // Only the host announces the final result. This avoids different clients
+    // racing to publish contradictory rankings.
+    if(!cbIsCurrentHost())return;
+    const remotes=Object.values(cbRemotePlayers);
+    if(cbRoom.mode==='coop'){
+      if(!cbAnyAlive()&&!cbReviveTimer){
+        const reason='모든 참가자가 동시에 탈락했어.';
+        cbBroadcast('match-end',{reason,results:{}});
+        cbFinishMultiplayerMatch(reason);
+      }
+    }else{
+      const aliveCount=(cbAlive?1:0)+remotes.filter(p=>p.alive!==false).length;
+      if(aliveCount<=1){
+        const rows=[{
+          id:cbUser.id,name:cbMyPlayer?.player_name||'나',
+          time:Math.floor(cbActiveTime),eaten:eatenBalls,alive:cbAlive
+        }];
+        remotes.forEach(p=>rows.push({
+          id:p.player_id,name:p.player_name||'플레이어',
+          time:Math.floor(Number(p.activeTime)||0),eaten:Math.max(0,Number(p.eaten)||0),
+          alive:p.alive!==false
+        }));
+        rows.sort((a,b)=>(Number(b.alive)-Number(a.alive))||b.time-a.time);
+        const results={};
+        rows.forEach((p,i)=>results[p.id]={name:p.name,time:p.time,eaten:p.eaten,rank:i+1,alive:p.alive});
+        const reason=rows.find(p=>p.alive)?.name+' 승리!';
+        cbBroadcast('match-end',{reason,results});
+        cbCompetitiveResults=results;
+        cbFinishMultiplayerMatch(reason);
+      }
+    }
+  }
+  function cbFinishMultiplayerMatch(reason){
+    if(cbMatchEnded||!cbMultiplayerActive)return;
+    cbMatchEnded=true;running=false;paused=false;cbAlive=false;
+    if(cbReviveTimer){clearTimeout(cbReviveTimer);cbReviveTimer=null;}
+    cbRenderLivesHud();
+    $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+    const myResult=cbCompetitiveResults?.[cbUser?.id];
+    $('finalTime').textContent=(myResult?.time??Math.floor(cbActiveTime))+'초';
+    $('finalEaten').textContent=(myResult?.eaten??eatenBalls).toLocaleString()+'개';
+    $('finalScore').textContent='—';$('bestScore').textContent='—';
+    $('endEyebrow').textContent=cbRoom?.mode==='competitive'?'COMPETITIVE RESULT':'CO-OP RESULT';
+    $('endTitle').textContent=cbRoom?.mode==='competitive'&&myResult?.rank
+      ? (myResult.rank+'위 · '+(reason||'게임 종료'))
+      : (reason||'게임 종료');
+    $('retryBtn').classList.add('hidden');$('exitBtn').textContent='대기실로 돌아가기';
+    $('endOverlay').classList.remove('hidden');
+    cbMarkMyGameFinished();
+  }
+  let cbReturningAfterGame=false;
+  async function cbMarkMyGameFinished(){
+    if(!cbRoom||!cbMyPlayer||!cbClient)return;
+    try{
+      const result=await cbClient.from('cb_players').update({status:'finished'}).eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(result.error)throw result.error;
+      cbMyPlayer.status='finished';await cbRefreshPlayers();
+    }catch(e){cbMessage('게임 결과 상태 동기화 실패: '+(e.message||'연결을 확인해 줘.'),true);}
+  }
+  async function cbReturnToLobbyAfterGame(){
+    if(cbReturningAfterGame||!cbRoom||!cbMyPlayer)return;
+    cbReturningAfterGame=true;
+    const roomId=cbRoom.id;
+    try{
+      // 나가기 버튼을 눌렀을 때만 대기실 복귀 처리
+      const result=await cbClient.from('cb_players').update({status:'waiting'}).eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(result.error)throw result.error;
+      cbMyPlayer.status='waiting';
+      cbGameSessionStarted=false;cbStopMultiplayer();
+      $('endOverlay').classList.add('hidden');
+      $('retryBtn').classList.remove('hidden');$('exitBtn').textContent='나가기';
+      $('multiOverlay').classList.remove('hidden');
+      $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+      await cbRefreshPlayers();
+      if(cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'&&cbPlayers.length&&cbPlayers.every(p=>p.status==='waiting')){
+        const roomUpdate=await cbClient.from('cb_rooms').update({status:'waiting'}).eq('id',roomId).eq('host_id',cbUser.id);
+        if(roomUpdate.error)throw roomUpdate.error;
+        if(cbRoom?.id===roomId)cbRoom.status='waiting';
+      }
+      cbShowLobby(true);cbRenderLobby();
+      cbMessage('대기실로 돌아왔어. 모든 참가자가 돌아오면 방장이 게임을 시작할 수 있어.',true);
+    }catch(e){cbMessage('대기실 복귀 실패: '+(e.message||'다시 눌러 줘.'),true);}
+    finally{cbReturningAfterGame=false;}
+  }
+  async function cbKickPlayer(playerId){
+    if(!cbRoom||!cbUser||cbUser.id!==cbRoom.host_id||playerId===cbRoom.host_id||cbBusy)return;
+    const target=cbPlayers.find(p=>p.player_id===playerId);
+    if(!target)return;
+    if(!confirm((target.player_name||'참가자')+'님을 방에서 추방할까? 방 코드를 알면 다시 참가할 수 있어.'))return;
+    cbBusy=true;
+    try{
+      const roomId=cbRoom.id;
+      const result=await cbClient.from('cb_players').delete().eq('room_id',roomId).eq('player_id',playerId).select('player_id');
+      if(result.error)throw result.error;
+      if(!result.data||result.data.length===0)throw new Error('참가자 정보가 삭제되지 않았어. 데이터베이스 권한(RLS) 또는 이미 나간 참가자인지 확인해야 해.');
+      await cbRefreshPlayers();
+      cbMessage('참가자를 추방했어. 방 코드로 다시 참가할 수 있어.',true);
+    }catch(e){cbMessage('추방 실패: '+(e.message||'다시 시도해 줘.'),true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  function cbStopMultiplayer(keepHud=false){
+    cbMultiplayerActive=false;cbRemotePlayers={};cbHostTransferBusy=false;cbHostIdAtGameStart=null;cbConnectionState='connecting';
+    if(cbGameChannel){cbClient.removeChannel(cbGameChannel);cbGameChannel=null;}
+    $('score').parentElement.parentElement.classList.remove('hidden');
+    $('centerStats').classList.remove('hidden');
+    $('lives').parentElement.classList.remove('hidden');
+    const livesHud=$('cbLivesHud');if(livesHud)livesHud.classList.add('hidden');
+  }
+  function cbPlayerLabel(playerId){
+    const idx=cbPlayers.findIndex(p=>p.player_id===playerId);
+    return idx>=0?'플레이어 '+(idx+1):'플레이어';
+  }
+  function cbPlayerColorHex(colorId){return cbColors.find(c=>c.id===colorId)?.hex||'#eaf1ff';}
+  function cbRenderLivesHud(){
+    const box=$('cbLivesHud');if(!box)return;
+    box.innerHTML='';
+    if(!cbRoom||!cbMultiplayerActive){box.classList.add('hidden');return;}
+    const list=cbPlayers.length?cbPlayers:[cbMyPlayer].filter(Boolean);
+    list.forEach(p=>{
+      const remote=cbRemotePlayers[p.player_id]||{},isMe=p.player_id===cbUser?.id;
+      const remaining=Math.max(0,Math.min(3,Number(isMe?lives:(remote.lives??(remote.alive===false?0:3)))));
+      const item=document.createElement('div');item.className='cbLifeItem';
+      const name=document.createElement('span');name.textContent=cbPlayerLabel(p.player_id);name.style.color=cbPlayerColorHex(isMe?cbMyPlayer?.ball_color:(remote.color||p.ball_color));
+      const hearts=document.createElement('span');hearts.className='cbLifeHearts';
+      for(let i=0;i<3;i++){const heart=document.createElement('span');heart.className='cbLifeHeart';heart.textContent=i<remaining?'♥':'♡';heart.style.color=i<remaining?'#ff5d87':'#7e879c';hearts.appendChild(heart);}
+      item.append(name,hearts);box.appendChild(item);
+    });
+    box.classList.remove('hidden');
+  }
+  function cbSendPosition(now){
+    if(!cbMultiplayerActive||!cbGameChannel||!player||now-cbLastPositionSend<50)return;
+    cbLastPositionSend=now;
+    cbGameChannel.send({type:'broadcast',event:'position',payload:{
+      player_id:cbUser?.id,player_name:cbMyPlayer?.player_name||'플레이어',
+      x:player.x/Math.max(1,W),y:player.y/Math.max(1,H),
+      color:cbMyPlayer?.ball_color||'cyan',alive:cbAlive&&running,deaths:cbDeaths,lives,
+      activeTime:Math.floor(cbActiveTime),eaten:eatenBalls
+    }});
+  }
+
+  const modeSettings={easy:{spawn:1.30,speed:.80,extra:.08},normal:{spawn:1.06,speed:.96,extra:.16},hard:{spawn:.90,speed:1.10,extra:.22},extreme:{spawn:.52,speed:1.30,extra:.40}};
+  let shieldSkills=0,slowSkills=0,slowTimer=0,shieldCooldown=0,slowCooldown=0,lastSkillSignature='',pendingBuyType=null;
+  let toastUntil=0;
+  try{best=Number(localStorage.getItem('colorBallsBest')||0);lastScore=Number(localStorage.getItem('colorBallsLast')||0);lastMode=localStorage.getItem('colorBallsLastMode')||'easy';bestByMode=JSON.parse(localStorage.getItem('colorBallsBestByMode')||'{"easy":0,"normal":0,"hard":0,"extreme":0}');recordModes.forEach(m=>bestByMode[m]=Number(bestByMode[m]||0));bestViewMode=localStorage.getItem('colorBallsBestViewMode')||'easy';gold=Number(localStorage.getItem('colorBallsGold')||0);shieldSkills=Number(localStorage.getItem('colorBallsShieldSkills')||0);slowSkills=Number(localStorage.getItem('colorBallsSlowSkills')||0)}catch(e){}
+  function resize(){
+    dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
+    canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(player){player.x=Math.min(W-player.r,Math.max(player.r,player.x));player.y=Math.min(H-player.r,Math.max(player.r,player.y));}
+  }
+  function rand(n){return Math.floor(Math.random()*n)}
+  function chooseColor(){return rand(colors.length)}
+  function reset(){
+    countdown=0;$('pauseOverlay').classList.add('hidden');$('buyConfirmOverlay').classList.add('hidden');canvas.style.display='block';
+    slowTimer=0;$('shopOverlay').classList.add('hidden');
+    score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;
+    player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
+    updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
+    running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();updateHud();
+    announce('GO!',player.color);
+  }
+  function updateHud(){
+    $('homeBest').textContent=Number(bestByMode[bestViewMode]||0).toLocaleString();
+    $('homeBestDiff').textContent=modeLabels[bestViewMode]||'EASY';
+    $('homeLast').textContent=lastScore.toLocaleString();
+    $('homeLastDiff').textContent=modeLabels[lastMode]||'EASY';
+    $('homeGold').textContent=gold.toLocaleString();
+    $('shopGold').textContent=gold.toLocaleString();
+    renderSkillButtons();
+    $('runGold').textContent=runGold.toLocaleString();
+    $('gameDifficulty').textContent=selectedMode.toUpperCase();
+    $('score').textContent=score.toLocaleString();
+    $('survivalTime').textContent=Math.floor(elapsed/60)+':'+String(Math.floor(elapsed)%60).padStart(2,'0');
+    $('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);
+    $('lives').style.color=lives===1?'#ff5c91':'#ff7b9f';
+  }
+  function announce(text,color){
+    const t=$('toast');t.textContent=text;t.style.color=color==null?'#fff':colors[color].hex;t.style.opacity='1';t.style.transform='translate(-50%,-50%)';toastUntil=performance.now()+520;
+  }
+  function spawnBall(){
+    const edge=rand(4),margin=34;
+    let x,y;
+    if(edge===0){x=-margin;y=Math.random()*H}
+    else if(edge===1){x=W+margin;y=Math.random()*H}
+    else if(edge===2){x=Math.random()*W;y=-margin}
+    else{x=Math.random()*W;y=H+margin}
+    // Target a point near the player, with a controllable spread rather than a perfect homing shot.
+    const aimX=player.x+(Math.random()-.5)*Math.min(W*.72,260);
+    const aimY=player.y+(Math.random()-.5)*Math.min(H*.62,220);
+    const angle=Math.atan2(aimY-y,aimX-x)+(Math.random()-.5)*(0.18+Math.min(.65,elapsed*.006));
+    const ongoingGrowth=Math.pow(1+elapsed/45,.18);
+    const speed=(145+Math.min(210,elapsed*4.1)+Math.random()*55)*modeSettings[selectedMode].speed*ongoingGrowth;
+    const color=chooseColor();
+    const kind=elapsed>9&&Math.random()<Math.min(.48,elapsed*.012)?rand(3):0;
+    balls.push({id:cbMultiplayerActive?('b'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)+'-'+(++cbBallSeq)):undefined,x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:9+Math.random()*5,color,kind,age:0,phase:Math.random()*Math.PI*2,turn:(Math.random()<.5?-1:1)*(45+Math.random()*95)});
+  }
+  function burst(x,y,color,count=18){
+    for(let i=0;i<count;i++){
+      const a=Math.random()*Math.PI*2,s=35+Math.random()*210;
+      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:2+Math.random()*3,life:.45+Math.random()*.55,max:.9,color});
+    }
+  }
+  function hitBall(b){
+    if(b.color===player.color){
+      eatenBalls++;
+      if(cbMultiplayerActive){
+        combo=0;burst(b.x,b.y,b.color,12);shake=Math.min(7,shake+1.3);updateHud();return;
+      }
+      combo++;
+      const base=10+Math.floor(elapsed/12);
+      const mult=Math.min(12,1+Math.floor((combo-1)/2));
+      const gained=base*mult;
+      score+=gained;
+      gold++;runGold++;
+      try{localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+      burst(b.x,b.y,b.color,12+Math.min(20,combo));
+      shake=Math.min(7,shake+1.3);
+      announce('×'+combo+'   +'+gained+'   골드 +1',b.color);
+      updateHud();
+    }else{
+      burst(player.x,player.y,player.color,24);
+      burst(b.x,b.y,b.color,20);
+      if(invulnerable>0)return;
+      combo=0;shake=Math.min(12,shake+5);
+      if(cbMultiplayerActive){
+        if(cbRoom?.mode==='coop'){
+          lives=Math.max(0,lives-1);updateHud();
+          if(lives<=0){cbHandleMultiplayerDeath();return;}
+          invulnerable=1.25;announce('생명 감소!  '+lives+'개 남음',b.color);return;
+        }
+        cbHandleMultiplayerDeath();return;
+      }
+      lives--;invulnerable=1.25;updateHud();
+      if(lives<=0){gameOver();return;}
+      announce('생명 감소!  '+lives+'개 남음',b.color);
+    }
+  }
+  function gameOver(){
+    running=false;paused=false;
+    if(cbMultiplayerActive){cbHandleMultiplayerDeath();return;}
+    $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+    const isNewBest=score>Number(bestByMode[selectedMode]||0);
+    lastScore=score;lastMode=selectedMode;
+    bestByMode[selectedMode]=Math.max(Number(bestByMode[selectedMode]||0),score);
+    best=Math.max(best,score);
+    try{localStorage.setItem('colorBallsLast',String(lastScore));localStorage.setItem('colorBallsLastMode',lastMode);localStorage.setItem('colorBallsBest',String(best));localStorage.setItem('colorBallsBestByMode',JSON.stringify(bestByMode))}catch(e){}
+    $('finalTime').textContent=Math.floor(elapsed)+'초';
+    $('finalEaten').textContent=eatenBalls.toLocaleString()+'개';
+    $('finalScore').textContent=score.toLocaleString();
+    $('bestScore').textContent=best.toLocaleString();
+    $('endEyebrow').textContent=isNewBest?'NEW BEST!':'RUN ENDED';
+    $('endTitle').textContent='GAME OVER';
+
+    $('endOverlay').classList.remove('hidden');
+  }
+  function backToTitle(){
+    running=false;paused=false;pointerDown=false;pointerId=null;countdown=0;
+    canvas.style.display='none';
+    balls=[];particles=[];shake=0;
+    $('pauseBtn').textContent='Ⅱ';
+    $('pauseOverlay').classList.add('hidden');
+    $('shopOverlay').classList.add('hidden');
+    $('buyConfirmOverlay').classList.add('hidden');
+    $('endOverlay').classList.add('hidden');
+    $('mainOverlay').classList.remove('hidden');$('hud').classList.add('menu-hidden');
+    $('homeBest').textContent=Number(bestByMode[bestViewMode]||0).toLocaleString();$('homeBestDiff').textContent=modeLabels[bestViewMode]||'EASY';$('homeLast').textContent=lastScore.toLocaleString();$('homeLastDiff').textContent=modeLabels[lastMode]||'EASY';
+    $('toast').style.opacity='0';
+  }
+  function renderSkillButtons(){
+    const box=$('skillButtons');
+    const signature='skills-always-visible';
+    if(signature!==lastSkillSignature){
+      lastSkillSignature=signature;box.innerHTML='';
+      {const button=document.createElement('button');button.className='skillButton';button.dataset.skill='shield';button.setAttribute('aria-label','3초 무적 스킬 사용');button.title='3초 무적';button.innerHTML='<span class="skillIcon">🛡️</span><span class="skillCount"></span><span class="skillCooldown hidden"></span>';button.addEventListener('click',()=>useSkill('shield'));box.appendChild(button);}
+      {const button=document.createElement('button');button.className='skillButton';button.dataset.skill='slow';button.setAttribute('aria-label','5초 슬로우 스킬 사용');button.title='5초 슬로우';button.innerHTML='<span class="skillIcon">🐢</span><span class="skillCount"></span><span class="skillCooldown hidden"></span>';button.addEventListener('click',()=>useSkill('slow'));box.appendChild(button);}
+    }
+    box.classList.toggle('hidden',!running);
+    updateSkillButtonLabels();
+  }
+  function updateSkillButtonLabels(){
+    $('skillButtons').querySelectorAll('[data-skill]').forEach(button=>{
+      const type=button.dataset.skill;
+      const count=type==='shield'?shieldSkills:slowSkills;
+      const cooldown=type==='shield'?shieldCooldown:slowCooldown;
+      const name=type==='shield'?'3초 무적':'5초 슬로우';
+      button.setAttribute('aria-label',name+' 스킬 사용, 보유 '+count+'개'+(cooldown>0?', 쿨타임 '+cooldown.toFixed(1)+'초':''));
+      button.querySelector('.skillCount').textContent=count;
+      const cooldownLabel=button.querySelector('.skillCooldown');
+      cooldownLabel.textContent=cooldown>0?cooldown.toFixed(1):'';
+      cooldownLabel.classList.toggle('hidden',cooldown<=0);
+      button.disabled=count<=0||cooldown>0||!running||paused||countdown>0;
+    });
+  }
+  function useSkill(type){
+    if(cbMultiplayerActive||!running||paused||countdown>0)return;
+    const count=type==='shield'?shieldSkills:slowSkills;
+    const cooldown=type==='shield'?shieldCooldown:slowCooldown;
+    if(count<=0||cooldown>0)return;
+    if(type==='shield'){
+      shieldSkills--;invulnerable=3;shieldCooldown=5;
+      try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills))}catch(e){}
+      announce('3초 무적!',0);
+    }else{
+      slowSkills--;slowTimer=5;slowCooldown=5;
+      try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills))}catch(e){}
+      announce('5초 슬로우!',3);
+    }
+    updateHud();
+  }
+  function askBuySkill(type){
+    pendingBuyType=type;
+    const name=type==='shield'?'3초 무적':'5초 슬로우';
+    $('confirmTitle').textContent=name+' 구매';
+    $('confirmMessage').textContent='30 골드를 사용해 '+name+' 스킬을 구매할까?';
+    $('buyConfirmOverlay').classList.remove('hidden');
+  }
+  function buySkill(type){
+    const count=type==='shield'?shieldSkills:slowSkills;
+    if(count>=3){announce('스킬은 최대 3개까지 보유할 수 있어');return;}
+    if(gold<30){announce('골드가 부족해');return;}
+    gold-=30;
+    if(type==='shield'){
+      shieldSkills++;
+      try{localStorage.setItem('colorBallsShieldSkills',String(shieldSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+    }else{
+      slowSkills++;
+      try{localStorage.setItem('colorBallsSlowSkills',String(slowSkills));localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+    }
+    updateHud();refreshShop();announce('스킬 구매 완료');
+  }
+  function refreshShop(){
+    $('shopGold').textContent=gold.toLocaleString();
+    $('shieldOwned').textContent=shieldSkills+' / 3';
+    $('slowOwned').textContent=slowSkills+' / 3';
+    $('buyShieldBtn').disabled=shieldSkills>=3||gold<30;
+    $('buySlowBtn').disabled=slowSkills>=3||gold<30;
+    $('buyShieldBtn').textContent=shieldSkills>=3?'보유 최대':'30 골드 · 구매';
+    $('buySlowBtn').textContent=slowSkills>=3?'보유 최대':'30 골드 · 구매';
+  }
+  function togglePause(){
+    if(!running||countdown>0)return;
+    paused=true;pointerDown=false;pointerId=null;
+    $('pauseBtn').textContent='▶';
+    $('pauseOverlay').classList.remove('hidden');
+    updateSkillButtonLabels();
+  }
+  function beginResumeCountdown(){
+    if(!running)return;
+    $('pauseOverlay').classList.add('hidden');
+    paused=false;pointerDown=false;pointerId=null;countdown=3;last=performance.now();
+    $('pauseBtn').textContent='Ⅱ';
+    updateSkillButtonLabels();
+  }
+  function abandonRun(){
+    if(runGold>0){
+      gold=Math.max(0,gold-runGold);
+      try{localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
+    }
+    runGold=0;backToTitle();updateHud();
+  }
+  function update(dt){
+    const oldSeconds=Math.floor(elapsed);
+    elapsed+=dt;
+    if(cbMultiplayerActive&&cbAlive&&!cbMatchEnded)cbActiveTime+=dt;
+    slowTimer=Math.max(0,slowTimer-dt);shieldCooldown=Math.max(0,shieldCooldown-dt);slowCooldown=Math.max(0,slowCooldown-dt);updateSkillButtonLabels();
+    score+=Math.floor(elapsed)-oldSeconds;
+    invulnerable=Math.max(0,invulnerable-dt);
+    updateHud();
+    const spawnGrowth=Math.pow(1+elapsed/40,.22);
+    const spawnInterval=Math.max(.075,.82*modeSettings[selectedMode].spawn/spawnGrowth);
+    const extraChance=modeSettings[selectedMode].extra+(1-modeSettings[selectedMode].extra)*(elapsed/(elapsed+90));
+    spawnClock+=dt;
+    if(!cbMultiplayerActive||cbUser?.id===cbRoom?.host_id){
+      while(spawnClock>=spawnInterval){spawnClock-=spawnInterval;spawnBall();if(Math.random()<extraChance)spawnBall();}
+    }else spawnClock=Math.min(spawnClock,spawnInterval);
+    // Smoothly follow pointer position while preserving a little inertia.
+    player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+    player.y=Math.max(player.r+52,Math.min(H-player.r-28,player.y));
+    player.trail.push({x:player.x,y:player.y});if(player.trail.length>7)player.trail.shift();
+    for(let i=balls.length-1;i>=0;i--){
+      const b=balls[i];b.age+=dt;
+      if(b.kind===1){b.phase+=dt*2.3;b.vx+=Math.sin(b.phase)*55*dt;b.vy+=Math.cos(b.phase*.7)*35*dt;}
+      if(b.kind===2&&b.age>.7){const a=Math.atan2(player.y-b.y,player.x-b.x);b.vx+=Math.cos(a)*65*dt;b.vy+=Math.sin(a)*65*dt;}
+      if(b.kind===3){b.phase+=dt*2.8;b.vx+=Math.cos(b.phase)*b.turn*dt;b.vy+=Math.sin(b.phase)*b.turn*dt;}
+      const speedFactor=slowTimer>0?.5:1;
+      b.x+=b.vx*dt*speedFactor;b.y+=b.vy*dt*speedFactor;
+      if(cbMultiplayerActive&&cbUser?.id!==cbRoom?.host_id&&Number.isFinite(b.targetX)&&Number.isFinite(b.targetY)){
+        const blend=1-Math.exp(-dt*18);
+        b.x+=(b.targetX-b.x)*blend;b.y+=(b.targetY-b.y)*blend;
+        if(Number.isFinite(b.targetVx))b.vx+=(b.targetVx-b.vx)*blend;
+        if(Number.isFinite(b.targetVy))b.vy+=(b.targetVy-b.vy)*blend;
+      }
+      if(cbMultiplayerActive){
+        if(cbIsCurrentHost()){
+          let hitPlayer=null;
+          const dx=b.x-player.x,dy=b.y-player.y;
+          if(cbAlive&&Math.hypot(dx,dy)<b.r+player.r)hitPlayer=cbUser.id;
+          if(!hitPlayer){
+            for(const p of Object.values(cbRemotePlayers)){
+              if(p.alive===false||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
+              const px=p.x*W,py=p.y*H,pr=Math.max(15,Math.min(23,W*.045));
+              if(Math.hypot(b.x-px,b.y-py)<b.r+pr){hitPlayer=p.player_id;break;}
+            }
+          }
+          if(hitPlayer){
+            balls.splice(i,1);
+            if(b.id){cbRememberBall(b.id);cbBroadcast('ball-hit',{id:b.id,player_id:hitPlayer,seq:cbBallSnapshotSeq,ball:{x:b.x/Math.max(1,W),y:b.y/Math.max(1,H),vx:b.vx/Math.max(1,W),vy:b.vy/Math.max(1,H),r:b.r/Math.max(1,Math.min(W,H)),color:b.color,kind:b.kind,age:b.age,phase:b.phase,turn:b.turn}});}
+            if(hitPlayer===cbUser.id){hitBall(b);if(!running)return;}
+            continue;
+          }
+        }
+      }else{
+        const dx=b.x-player.x,dy=b.y-player.y,dist=Math.hypot(dx,dy);
+        if(dist<b.r+player.r){balls.splice(i,1);hitBall(b);if(!running)return;continue;}
+      }
+      if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)balls.splice(i,1);
+    }
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.08,dt);p.vy*=Math.pow(.08,dt);if(p.life<=0)particles.splice(i,1);}
+    shake=Math.max(0,shake-dt*18);
+  }
+  function drawBall(b){
+    const c=colors[b.color];
+    ctx.save();ctx.globalAlpha=.24;ctx.strokeStyle=c.hex;ctx.lineWidth=b.r*1.25;ctx.beginPath();ctx.moveTo(b.x-b.vx*.055,b.y-b.vy*.055);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore();
+    ctx.save();ctx.shadowBlur=18;ctx.shadowColor=c.glow;
+    const g=ctx.createRadialGradient(b.x-b.r*.3,b.y-b.r*.35,1,b.x,b.y,b.r);
+    g.addColorStop(0,'#ffffff');g.addColorStop(.22,c.hex);g.addColorStop(1,c.glow);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    if(b.kind){ctx.strokeStyle='#ffffffaa';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(b.x,b.y,b.r+4,0,Math.PI*2);ctx.stroke();}
+  }
+  function draw(){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);
+    const grad=ctx.createLinearGradient(0,0,W,H);grad.addColorStop(0,'#080b16');grad.addColorStop(1,'#0c1223');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+    // Quiet grid and ambient stars.
+    ctx.strokeStyle='#ffffff08';ctx.lineWidth=1;
+    const step=42;for(let x=(W%step)/2;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(let y=(H%step)/2;y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+    balls.forEach(drawBall);
+    if(cbMultiplayerActive){
+      Object.values(cbRemotePlayers).forEach(p=>{
+        if(!p.alive)return;
+        const c=cbColors.find(x=>x.id===p.color);if(!c)return;
+        const x=p.x*W,y=p.y*H;
+        ctx.save();ctx.shadowBlur=18;ctx.shadowColor=c.hex;ctx.fillStyle=c.hex;
+        ctx.beginPath();ctx.arc(x,y,Math.max(15,Math.min(23,W*.045)),0,Math.PI*2);ctx.fill();
+        ctx.shadowBlur=0;ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();
+        ctx.fillStyle=cbPlayerColorHex(p.color);ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=5;ctx.fillText(cbPlayerLabel(p.player_id),x,y-25);ctx.restore();
+      });
+    }
+
+    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=colors[p.color].hex;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();});ctx.globalAlpha=1;
+    if(player){
+      const c=colors[player.color];
+      player.trail.forEach((t,i)=>{ctx.globalAlpha=(i/player.trail.length)*.22;ctx.fillStyle=c.hex;ctx.beginPath();ctx.arc(t.x,t.y,player.r*(i/player.trail.length)*.8,0,Math.PI*2);ctx.fill()});
+      ctx.globalAlpha=1;ctx.save();if(invulnerable>0&&Math.floor(performance.now()/90)%2===0)ctx.globalAlpha=.28;ctx.shadowBlur=28;ctx.shadowColor=c.hex;
+      const g=ctx.createRadialGradient(player.x-player.r*.35,player.y-player.r*.4,1,player.x,player.y,player.r*1.2);
+      g.addColorStop(0,'#ffffff');g.addColorStop(.24,c.hex);g.addColorStop(1,c.glow);
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.restore();
+      ctx.strokeStyle='#ffffffcc';ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x,player.y,player.r+5,0,Math.PI*2);ctx.stroke();
+      if(cbMultiplayerActive){ctx.save();ctx.fillStyle=cbPlayerColorHex(cbMyPlayer?.ball_color);ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=5;ctx.fillText(cbPlayerLabel(cbUser?.id),player.x,player.y-player.r-8);ctx.restore();}
+    }
+    ctx.restore();
+    if(running&&countdown>0){ctx.save();ctx.fillStyle='#ffffff';ctx.font='1000 '+Math.min(100,W*.22)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.fillText(String(Math.ceil(countdown)),W/2,H/2);ctx.restore();}
+    if(performance.now()>toastUntil){    cbSendPosition(performance.now());cbSyncBalls(performance.now());
+$('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
+  }
+  function frame(now){
+    const dt=Math.min(.033,(now-last)/1000||0);last=now;
+    const shouldSimulate=(!paused&&(running||(cbMultiplayerActive&&!cbMatchEnded)));
+    if(shouldSimulate){if(countdown>0&&running){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
+    draw();requestAnimationFrame(frame);
+  }
+  function pointerMove(e){
+    if(!player||!running||paused||countdown>0)return;
+    if(e.pointerType==='mouse'){
+      const rect=canvas.getBoundingClientRect();
+      player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
+      return;
+    }
+    if(!pointerDown)return;
+    const rect=canvas.getBoundingClientRect();
+    player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    if(!running||paused||countdown>0)return;
+    pointerDown=true;pointerId=e.pointerId;
+    if(canvas.setPointerCapture)canvas.setPointerCapture(e.pointerId);
+    pointerMove(e);
+  });
+  canvas.addEventListener('pointermove',pointerMove);
+  const release=()=>{pointerDown=false;pointerId=null};
+  canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+  canvas.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')release();});
+
+  // Online room/lobby setup. Single-player logic remains separate.
+  const CB_SUPABASE_URL='https://nbvfxlaeattbqsablsrd.supabase.co';
+  const CB_SUPABASE_KEY='sb_publishable_UVRwP4xzxz7p7aK9nKZOFw_y39XLVlr';
+  const cbClient=window.supabase?.createClient(CB_SUPABASE_URL,CB_SUPABASE_KEY);
+  const cbColors=[
+    {id:'cyan',hex:'#63eaff',name:'CYAN'},
+    {id:'pink',hex:'#ff5c91',name:'PINK'},
+    {id:'yellow',hex:'#ffe36a',name:'YELLOW'},
+    {id:'violet',hex:'#a78bff',name:'VIOLET'},
+    {id:'lime',hex:'#9cff7b',name:'LIME'}
+  ];
+  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null,cbRoomPollBusy=false,cbRoomPollId=null;
+  let cbMode='coop',cbDifficulty='normal',cbBusy=false,cbKickNoticeShowing=false;
+  const cbEl=id=>document.getElementById(id);
+  const cbModeNames={coop:'협동 생존',competitive:'최후의 생존자'};
+  const cbDiffNames={easy:'EASY',normal:'NORMAL',hard:'HARD',extreme:'EXTREME'};
+  function cbMessage(message,isLobby=false){cbEl(isLobby?'lobbyMessage':'multiMessage').textContent=message||'';}
+  async function cbHandleKicked(){
+    if(cbKickNoticeShowing)return;
+    cbKickNoticeShowing=true;
+    if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}
+    cbRoomPollId=null;
+    if(cbChannel){try{await cbClient.removeChannel(cbChannel);}catch(e){}cbChannel=null;}
+    if(cbRoomChannel){try{await cbClient.removeChannel(cbRoomChannel);}catch(e){}cbRoomChannel=null;}
+    cbStopMultiplayer();cbGameSessionStarted=false;
+    cbRoom=null;cbMyPlayer=null;cbPlayers=[];cbRemotePlayers={};
+    cbEl('multiOverlay').classList.add('hidden');
+    cbEl('endOverlay').classList.add('hidden');
+    cbEl('hud').classList.add('menu-hidden');
+    cbEl('skillButtons').classList.add('hidden');
+    backToTitle();
+    alert('방에서 추방되었습니다. 메인 화면으로 돌아갑니다.');
+    cbKickNoticeShowing=false;
+  }
+  function cbCode(){return Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'X');}
+  async function cbEnsureUser(){
+    if(!cbClient)throw new Error('Supabase 연결을 불러오지 못했어. 인터넷 연결을 확인해 줘.');
+    if(cbUser)return cbUser;
+    let sessionResult=await cbClient.auth.getSession();
+    if(sessionResult.error)throw sessionResult.error;
+    if(sessionResult.data.session?.user){cbUser=sessionResult.data.session.user;return cbUser;}
+    const sign=await cbClient.auth.signInAnonymously();
+    if(sign.error)throw sign.error;
+    cbUser=sign.data.user;
+    if(!cbUser)throw new Error('익명 로그인에 실패했어.');
+    return cbUser;
+  }
+  function cbShowLobby(show){
+    cbEl('multiCloseBtn').classList.toggle('hidden',show);
+    cbEl('multiHome').classList.toggle('hidden',show);
+    cbEl('multiLobby').classList.toggle('hidden',!show);
+    cbEl('multiTitle').textContent=show?'대기실':'친구와 플레이';
+  }
+  function cbPaintChoices(){
+    const row=cbEl('multiColorChoices');row.innerHTML='';
+    const occupied=cbPlayers.filter(p=>p.player_id!==cbUser?.id).map(p=>p.ball_color);
+    cbColors.forEach(c=>{
+      const b=document.createElement('button');b.className='multiColor';b.style.background=c.hex;b.style.color=c.hex;
+      b.title=c.name;b.setAttribute('aria-label',c.name+' 색상 선택');
+      b.disabled=!cbMyPlayer||occupied.includes(c.id)||cbBusy||cbRoom?.status!=='waiting';
+      if(cbMyPlayer?.ball_color===c.id)b.style.borderColor='#ffffff';
+      b.addEventListener('click',()=>cbChooseColor(c.id));row.appendChild(b);
+    });
+  }
+  function cbRenderLobby(){
+    if(!cbRoom)return;
+    cbEl('roomCodeDisplay').value=cbRoom.room_code;
+    cbEl('roomStatusText').textContent=cbRoom.status==='playing'?'게임 중':cbRoom.status==='finished'?'게임 종료':'대기 중';
+    cbEl('multiPlayerCount').textContent=cbPlayers.length+'/4';
+    cbEl('multiPlayerList').innerHTML='';
+    cbPlayers.forEach(p=>{
+      const color=cbColors.find(c=>c.id===p.ball_color)||cbColors[0];
+      const row=document.createElement('div');row.className='multiPlayer';
+      const dot=document.createElement('span');dot.className='multiDot';dot.style.background=color.hex;dot.style.color=color.hex;
+      const name=document.createElement('span');name.className='multiPlayerName';name.textContent=p.player_name+(p.player_id===cbRoom.host_id?' (방장)':'');
+      const meta=document.createElement('span');meta.className='multiPlayerMeta';meta.textContent=p.player_id===cbUser?.id?'나':p.status==='spectating'?'관전 중':'참가 중';
+      row.append(dot,name,meta);
+      if(cbUser?.id===cbRoom.host_id&&p.player_id!==cbRoom.host_id){
+        const kick=document.createElement('button');kick.className='multiBtn';kick.textContent='추방';kick.style.padding='6px 9px';kick.style.fontSize='11px';kick.addEventListener('click',()=>cbKickPlayer(p.player_id));row.appendChild(kick);
+      }
+      cbEl('multiPlayerList').appendChild(row);
+    });
+    const isHost=cbUser?.id===cbRoom.host_id;
+    cbEl('hostOnlyText').textContent=isHost?'방장인 너는 모드와 난이도를 바꿀 수 있어.':'방장이 모드와 난이도를 선택해.';
+    cbEl('coopModeBtn').classList.toggle('selected',cbRoom.mode==='coop');
+    cbEl('competitiveModeBtn').classList.toggle('selected',cbRoom.mode==='competitive');
+    cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.classList.toggle('selected',b.dataset.multidiff===cbRoom.difficulty));
+    cbEl('coopModeBtn').disabled=!isHost||cbRoom.status!=='waiting';
+    cbEl('competitiveModeBtn').disabled=!isHost||cbRoom.status!=='waiting';
+    cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.disabled=!isHost||cbRoom.status!=='waiting');
+    cbEl('startMultiBtn').classList.toggle('hidden',!isHost||cbRoom.status!=='waiting');
+    const ready=cbPlayers.filter(p=>p.status==='waiting').length;
+    cbEl('startMultiBtn').textContent=cbPlayers.length>0&&ready<cbPlayers.length?'대기실 복귀 대기 ('+ready+'/'+cbPlayers.length+')':'게임 시작';
+    cbEl('startMultiBtn').disabled=!isHost||cbRoom.status!=='waiting'||cbPlayers.length<2||ready!==cbPlayers.length;
+    cbEl('leaveRoomBtn').textContent=cbRoom.status==='playing'?'대기실 나가기':'대기실 나가기';
+    cbPaintChoices();
+  }
+  async function cbRefreshPlayers(){
+    if(!cbRoom)return;
+    const result=await cbClient.from('cb_players').select('*').eq('room_id',cbRoom.id).order('joined_at',{ascending:true});
+    if(result.error)throw result.error;
+    cbPlayers=result.data||[];
+    cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+    cbRenderLobby();if(cbMultiplayerActive)cbRenderLivesHud();
+  }
+  async function cbLoadRoom(roomId){
+    if(cbRoom?.id!==roomId)cbGameSessionStarted=false;
+    const result=await cbClient.from('cb_rooms').select('*').eq('id',roomId).single();
+    if(result.error)throw result.error;
+    cbRoom=result.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;
+    cbShowLobby(true);await cbRefreshPlayers();
+    if(cbChannel)await cbClient.removeChannel(cbChannel);
+    if(cbRoomChannel)await cbClient.removeChannel(cbRoomChannel);
+    cbChannel=cbClient.channel('cb-players-'+cbRoom.id).on('postgres_changes',{event:'*',schema:'public',table:'cb_players',filter:'room_id=eq.'+cbRoom.id},async()=>{
+      try{
+        await cbRefreshPlayers();
+        if(cbRoom&&cbUser&&!cbMyPlayer){
+          await cbHandleKicked();
+        }
+      }catch(e){cbMessage(e.message,true);}
+    }).subscribe();
+    cbRoomChannel=cbClient.channel('cb-room-'+cbRoom.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'cb_rooms',filter:'id=eq.'+cbRoom.id},payload=>{
+      cbRoom=payload.new;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbRenderLobby();
+      if(cbRoom.status==='playing'){cbStartGameClient();}
+    }).subscribe();
+    // Realtime 알림이 누락되는 기기에서도 방 설정과 참가자 목록을 함께 동기화한다.
+    if(cbRoomPollTimer)clearInterval(cbRoomPollTimer);
+    cbRoomPollId=cbRoom.id;
+    cbRoomPollTimer=setInterval(async()=>{
+      if(!cbRoom||!cbClient||cbRoom.id!==cbRoomPollId||cbRoomPollBusy)return;
+      cbRoomPollBusy=true;
+      try{
+        const roomId=cbRoom.id;
+        const check=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
+        if(check.error)throw check.error;
+        if(!check.data){
+          cbMessage('방 정보를 찾을 수 없어. 방장이 방을 나갔을 수 있어.',true);
+          return;
+        }
+        if(!cbRoom||cbRoom.id!==roomId)return;
+        const previousRoomStatus=cbRoom.status;
+        const previousHost=cbRoom.host_id;cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbLastRoomSyncAt=Date.now();
+        if(previousHost!==cbRoom.host_id){cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();if(cbUser?.id===cbRoom.host_id)cbMessage('새 방장이 경기를 이어받았어.',true);}
+        if(previousRoomStatus==='playing'&&cbRoom.status==='waiting'&&cbMultiplayerActive){
+          cbGameSessionStarted=false;cbStopMultiplayer();
+          $('endOverlay').classList.add('hidden');$('multiOverlay').classList.remove('hidden');
+          $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
+          cbShowLobby(true);
+        }
+        // 참가자 목록을 매번 다시 읽어 인원수/색상/참가 상태를 맞춘다.
+        const people=await cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true});
+        if(people.error)throw people.error;
+        if(!cbRoom||cbRoom.id!==roomId)return;
+        cbPlayers=people.data||[];
+        cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+        // The current host records a server-side heartbeat; participants may
+        // request takeover only through the guarded database function.
+        if(cbRoom.status==='playing'&&cbIsCurrentHost()){
+          const heartbeat=await cbClient.rpc('cb_host_heartbeat',{p_room_id:roomId});
+          if(heartbeat.error)cbUpdateConnectionState('reconnecting');
+          else cbUpdateConnectionState('connected');
+        }
+        // The host may have returned before the other players. Re-check readiness
+        // during polling so the room can become startable when the last player returns.
+        if(cbMyPlayer&&cbUser?.id===cbRoom.host_id&&cbRoom.status==='playing'&&cbPlayers.length>=2&&cbPlayers.every(p=>p.status==='waiting')){
+          const readyUpdate=await cbClient.from('cb_rooms').update({status:'waiting'}).eq('id',roomId).eq('host_id',cbUser.id).eq('status','playing');
+          if(!readyUpdate.error){cbRoom.status='waiting';cbRenderLobby();}
+        }
+        if(!cbMyPlayer){
+          await cbHandleKicked();
+          return;
+        }
+        cbRenderLobby();
+        if(cbRoom.status==='playing'){cbStartGameClient();cbPruneStalePlayers();if(!cbIsCurrentHost())await cbTryTransferHost();}
+      }catch(e){
+        cbMessage('동기화 오류: '+(e.message||'연결을 확인해 줘.'),true);
+      }finally{cbRoomPollBusy=false;}
+    },1200);
+    if(cbRoom.status==='playing')cbStartGameClient();
+  }
+  async function cbCreateRoom(){
+    if(cbBusy)return;cbBusy=true;cbMessage('방을 만들고 있어…');
+    try{
+      await cbEnsureUser();
+      let room=null,lastError=null;
+      for(let i=0;i<5;i++){
+        const code=cbCode();
+        const created=await cbClient.from('cb_rooms').insert({room_code:code,host_id:cbUser.id,mode:'coop',difficulty:'normal',status:'waiting'}).select('*').single();
+        if(!created.error){room=created.data;break;}lastError=created.error;
+        if(created.error.code!=='23505')break;
+      }
+      if(!room)throw lastError||new Error('방 생성에 실패했어.');
+      const player=await cbClient.from('cb_players').insert({room_id:room.id,player_id:cbUser.id,player_name:'플레이어',ball_color:'cyan',status:'waiting'});
+      if(player.error){await cbClient.from('cb_rooms').delete().eq('id',room.id);throw player.error;}
+      cbRoom=room;await cbLoadRoom(room.id);cbMessage('');
+    }catch(e){cbMessage('오류: '+(e.message||'방 생성 실패'));}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbJoinRoom(){
+    if(cbBusy)return;const code=cbEl('joinCodeInput').value.trim().toUpperCase();
+    if(!/^[A-Z0-9]{6}$/.test(code)){cbMessage('방 코드는 영문/숫자 6자리로 입력해 줘.');return;}
+    cbBusy=true;cbMessage('방을 찾고 있어…');
+    try{
+      await cbEnsureUser();
+      const found=await cbClient.from('cb_rooms').select('*').eq('room_code',code).maybeSingle();
+      if(found.error)throw found.error;if(!found.data)throw new Error('해당 방을 찾지 못했어.');
+      if(found.data.status!=='waiting')throw new Error('이미 시작했거나 종료된 방이야.');
+      const [existing,current,used]=await Promise.all([
+        cbClient.from('cb_players').select('*').eq('room_id',found.data.id).eq('player_id',cbUser.id).maybeSingle(),
+        cbClient.from('cb_players').select('id').eq('room_id',found.data.id),
+        cbClient.from('cb_players').select('ball_color').eq('room_id',found.data.id)
+      ]);
+      if(existing.error)throw existing.error;
+      if(existing.data){cbRoom=found.data;await cbLoadRoom(found.data.id);return;}
+      if(current.error)throw current.error;
+      if(used.error)throw used.error;
+      if((current.data||[]).length>=4)throw new Error('방이 가득 찼어. 최대 4명이야.');
+      const free=cbColors.find(c=>!(used.data||[]).some(p=>p.ball_color===c.id));
+      if(!free)throw new Error('선택 가능한 색상이 없어.');
+      const joined=await cbClient.from('cb_players').insert({room_id:found.data.id,player_id:cbUser.id,player_name:'플레이어',ball_color:free.id,status:'waiting'});
+      if(joined.error)throw joined.error;
+      await cbLoadRoom(found.data.id);cbMessage('');
+    }catch(e){cbMessage('오류: '+(e.message||'방 참가 실패'));}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbChooseColor(color){
+    if(!cbRoom||!cbMyPlayer||cbBusy)return;cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_players').update({ball_color:color}).eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(result.error)throw result.error;await cbRefreshPlayers();cbMessage('공 색상을 변경했어.',true);
+    }catch(e){cbMessage('색상 변경 실패: '+e.message,true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbSetRoom(field,value){
+    if(!cbRoom||cbUser.id!==cbRoom.host_id||cbBusy)return;cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_rooms').update({[field]:value}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
+      if(result.error)throw result.error;
+      cbRoom[field]=value;cbRenderLobby();cbMessage('');
+    }catch(e){cbMessage('설정 변경 실패: '+e.message,true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbStartRoom(){
+    if(!cbRoom||cbUser.id!==cbRoom.host_id||cbBusy)return;
+    if(cbRoom.status!=='waiting'){cbMessage('현재는 게임을 시작할 수 없어.',true);return;}
+    if(cbPlayers.length<2){cbMessage('친구가 한 명 이상 참가해야 시작할 수 있어.',true);return;}
+    const notReady=cbPlayers.filter(p=>p.status!=='waiting');
+    if(notReady.length){cbMessage('모든 참가자가 결과창에서 대기실로 돌아와야 시작할 수 있어.',true);return;}
+    cbBusy=true;
+    try{
+      const result=await cbClient.from('cb_rooms').update({status:'playing'}).eq('id',cbRoom.id).eq('host_id',cbUser.id);
+      if(result.error)throw result.error;
+      const resetPlayers=await cbClient.from('cb_players').update({status:'playing'}).eq('room_id',cbRoom.id);
+      if(resetPlayers.error)throw resetPlayers.error;
+      cbGameSessionStarted=false;cbRoom.status='playing';cbRenderLobby();cbStartGameClient();
+    }catch(e){cbMessage('게임 시작 실패: '+e.message,true);}
+    finally{cbBusy=false;cbRenderLobby();}
+  }
+  async function cbLeaveRoom(){
+    if(!cbRoom||!cbUser)return;
+    if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}
+    cbRoomPollId=null;
+    if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
+    if(cbRoomChannel){await cbClient.removeChannel(cbRoomChannel);cbRoomChannel=null;}
+    const oldRoom=cbRoom;
+    if(cbGameChannel){try{await cbGameChannel.send({type:'broadcast',event:'leave',payload:{player_id:cbUser.id}});}catch(e){}}
+    cbStopMultiplayer();
+    try{
+      if(cbMyPlayer)await cbClient.from('cb_players').delete().eq('id',cbMyPlayer.id).eq('player_id',cbUser.id);
+      if(cbUser.id===oldRoom.host_id){
+        const remain=await cbClient.from('cb_players').select('*').eq('room_id',oldRoom.id);
+        if(!remain.error&&remain.data?.length){
+          // 남아 있는 대기실 참가자 중 한 명을 무작위로 새 방장으로 지정한다.
+          const nextHost=remain.data[Math.floor(Math.random()*remain.data.length)];
+          const transfer=await cbClient.from('cb_rooms').update({host_id:nextHost.player_id}).eq('id',oldRoom.id).eq('host_id',cbUser.id);
+          if(transfer.error)throw transfer.error;
+        }else{
+          await cbClient.from('cb_rooms').delete().eq('id',oldRoom.id).eq('host_id',cbUser.id);
+        }
+      }
+    }catch(e){console.warn('room leave:',e);}
+    cbRoom=null;cbMyPlayer=null;cbPlayers=[];cbShowLobby(false);cbEl('multiOverlay').classList.add('hidden');
+    if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
+    if(cbRoomChannel){await cbClient.removeChannel(cbRoomChannel);cbRoomChannel=null;}
+  }
+  cbEl('openMultiBtn').addEventListener('click',()=>{cbEl('multiOverlay').classList.remove('hidden');cbShowLobby(!!cbRoom);});
+  cbEl('multiCloseBtn').addEventListener('click',async()=>{if(cbRoom)await cbLeaveRoom();else cbEl('multiOverlay').classList.add('hidden');});
+  cbEl('createRoomBtn').addEventListener('click',cbCreateRoom);
+  cbEl('joinRoomBtn').addEventListener('click',cbJoinRoom);
+  cbEl('joinCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')cbJoinRoom();});
+  cbEl('copyRoomCodeBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(cbRoom?.room_code||'');cbMessage('방 코드를 복사했어.',true);}catch(e){cbEl('roomCodeDisplay').select();cbMessage('코드를 길게 눌러 복사해 줘.',true);}});
+  cbEl('coopModeBtn').addEventListener('click',()=>cbSetRoom('mode','coop'));
+  cbEl('competitiveModeBtn').addEventListener('click',()=>cbSetRoom('mode','competitive'));
+  cbEl('multiOverlay').querySelectorAll('[data-multidiff]').forEach(b=>b.addEventListener('click',()=>cbSetRoom('difficulty',b.dataset.multidiff)));
+  cbEl('startMultiBtn').addEventListener('click',cbStartRoom);
+  cbEl('leaveRoomBtn').addEventListener('click',cbLeaveRoom);
+
+  const modeCycle=recordModes;
+  function refreshModeButton(){ $('cycleModeBtn').textContent=selectedMode.toUpperCase(); }
+  function refreshBestRecord(){ $('homeBest').textContent=Number(bestByMode[bestViewMode]||0).toLocaleString();$('homeBestDiff').textContent=modeLabels[bestViewMode]||'EASY'; }
+  $('cycleBestBtn').addEventListener('click',()=>{const idx=modeCycle.indexOf(bestViewMode);bestViewMode=modeCycle[(idx+1)%modeCycle.length];try{localStorage.setItem('colorBallsBestViewMode',bestViewMode)}catch(e){}refreshBestRecord();});
+  $('cycleModeBtn').addEventListener('click',()=>{const idx=modeCycle.indexOf(selectedMode);selectedMode=modeCycle[(idx+1)%modeCycle.length];refreshModeButton();});
+  refreshBestRecord();
+  $('startBtn').addEventListener('click',reset);$('retryBtn').addEventListener('click',reset);
+  $('openManualBtn').addEventListener('click',()=>{$('manualOverlay').classList.remove('hidden');});
+  $('closeManualBtn').addEventListener('click',()=>{$('manualOverlay').classList.add('hidden');});
+  $('openShopBtn').addEventListener('click',()=>{refreshShop();$('mainOverlay').classList.add('hidden');$('shopOverlay').classList.remove('hidden');});
+  $('closeShopBtn').addEventListener('click',()=>{$('shopOverlay').classList.add('hidden');$('mainOverlay').classList.remove('hidden');});
+  $('buyShieldBtn').addEventListener('click',()=>askBuySkill('shield'));$('buySlowBtn').addEventListener('click',()=>askBuySkill('slow'));
+  $('cancelBuyBtn').addEventListener('click',()=>{$('buyConfirmOverlay').classList.add('hidden');pendingBuyType=null;});
+  $('confirmBuyBtn').addEventListener('click',()=>{const type=pendingBuyType;pendingBuyType=null;$('buyConfirmOverlay').classList.add('hidden');if(type)buySkill(type);});
+  $('exitBtn').addEventListener('click',()=>{
+    if(cbMultiplayerActive&&cbRoom){cbReturnToLobbyAfterGame();return;}
+    $('retryBtn').classList.remove('hidden');$('exitBtn').textContent='나가기';
+    backToTitle();
+  });
+  $('pauseBtn').addEventListener('click',togglePause);
+  // Desktop shortcuts: 1 uses the first owned skill, 2 the second.
+  window.addEventListener('keydown',e=>{
+    if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||cbMultiplayerActive)return;
+    if(e.key!=='1'&&e.key!=='2')return;
+    if(!running||paused||countdown>0)return;
+    const skillButtons=[...$('skillButtons').querySelectorAll('[data-skill]')];
+    const button=skillButtons[Number(e.key)-1];
+    if(!button||button.disabled)return;
+    e.preventDefault();
+    useSkill(button.dataset.skill);
+  });
+  $('resumeCountdownBtn').addEventListener('click',beginResumeCountdown);
+  $('abandonBtn').addEventListener('click',abandonRun);
+  window.addEventListener('resize',resize);
+  resize();
+  player=null;updateHud();
+  requestAnimationFrame(frame);
+
+  // Installed Android PWAs can lock orientation when the browser permits it.
+  async function cbLockLandscape(){
+    try{
+      if(screen.orientation?.type?.startsWith('landscape')) return true;
+      if(screen.orientation?.lock){
+        await screen.orientation.lock('landscape');
+        return true;
+      }
+    }catch(e){}
+    // Do not rotate the page with CSS: it breaks all HUD/control positions.
+    // Installed Android PWA should take its orientation from manifest.json.
+    return false;
+  }
+  ['pointerdown','touchstart','click','keydown'].forEach(type=>{
+    window.addEventListener(type,cbLockLandscape,{passive:true});
+  });
+  cbLockLandscape();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbLockLandscape();});
+  window.addEventListener('pageshow',cbLockLandscape);
+  window.addEventListener('orientationchange',()=>{
+    // Layout follows the actual viewport; no CSS rotation fallback.
+  });
+})();
+</script>
+
+<script>
+// 설치된 PWA도 새 배포를 빠르게 확인하고 적용한다.
+if ('serviceWorker' in navigator) {
+  let cbReloadingForWorker = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (cbReloadingForWorker) return;
+    cbReloadingForWorker = true;
+    window.location.reload();
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } catch (error) {
+      console.warn('앱 업데이트 확인 실패:', error);
+    }
+  });
+}
+</script>
+</body>
+</html>
