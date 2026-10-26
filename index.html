@@ -132,9 +132,48 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   body::before{visibility:visible!important}
 }
 
+
+/* Landscape-first layout */
+#rotateNotice{display:none;position:fixed;inset:0;z-index:99999;background:#080b16;color:#f5f7ff;align-items:center;justify-content:center;text-align:center;padding:28px}
+#rotateNotice .rotateCard{max-width:340px;border:1px solid #334263;border-radius:22px;background:#11182a;padding:24px}
+#rotateNotice .rotateIcon{font-size:48px;line-height:1.2;margin-bottom:12px}
+@media(orientation:portrait){#rotateNotice{display:flex}}
+@media(orientation:landscape){
+  #mainOverlay{padding:12px 24px}
+  #mainOverlay .card{width:min(100%,940px);padding:8px 0;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);grid-template-areas:"eyebrow gold" "title records" "desc records" "rules actions" "rules start" "rules multi" "small small";column-gap:30px;align-content:center;align-items:center;min-height:calc(100dvh - 24px)}
+  #mainOverlay .eyebrow{grid-area:eyebrow;align-self:end}
+  #mainOverlay .home-gold{grid-area:gold;width:100%;margin:0 0 8px}
+  #mainOverlay .title{grid-area:title;font-size:clamp(32px,5vw,54px);margin:4px 0}
+  #mainOverlay .desc{grid-area:desc;font-size:13px;margin:0 0 4px;line-height:1.45}
+  #mainOverlay .rules{grid-area:rules;margin:6px 0;gap:8px}
+  #mainOverlay .record-panel{grid-area:records;width:100%;margin:0 0 8px;gap:8px}
+  #mainOverlay .homeActions{grid-area:actions;width:100%;margin:0 0 8px}
+  #mainOverlay #startBtn{grid-area:start}
+  #mainOverlay #openMultiBtn{grid-area:multi}
+  #mainOverlay .small{grid-area:small;margin:8px 0 0}
+  #mainOverlay .manualOpen{right:0;top:0;z-index:3}
+  #multiOverlay{padding:10px}
+  #multiOverlay .card{width:min(100%,980px);max-height:calc(100dvh - 20px);padding:18px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-content:start}
+  #multiOverlay .eyebrow,#multiOverlay #multiTitle,#multiOverlay #multiHome{grid-column:1/-1}
+  #multiOverlay #multiLobby{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+  #multiOverlay #multiLobby.hidden{display:none!important}
+  #multiOverlay #multiLobby>.multiSection:first-child,
+  #multiOverlay #multiLobby>strong,
+  #multiOverlay #multiLobby>.multiPlayers,
+  #multiOverlay #multiLobby>#lobbyMessage{grid-column:1/-1}
+  #multiOverlay #multiLobby>.multiSection:nth-child(2){grid-column:1}
+  #multiOverlay #multiLobby>.multiSection:nth-child(3){grid-column:2;grid-row:2}
+  #multiOverlay #multiLobby>#startMultiBtn,#multiOverlay #multiLobby>#leaveRoomBtn{align-self:end;margin-top:8px}
+  .cbLivesHud{top:8px;gap:14px;padding:5px 12px}
+  .difficultyTag{top:8px;left:auto;right:58px;transform:none}
+  #skillButtons{right:12px;bottom:12px;flex-direction:row}
+  #toast{top:50%}
+}
+
 </style>
 </head>
 <body>
+<div id="rotateNotice" aria-live="polite"><div class="rotateCard"><div class="rotateIcon">↻</div><strong>휴대폰을 가로로 돌려 줘</strong><p style="color:#aebbd8;line-height:1.6;margin-bottom:0">COLOR-BALLS는 가로 화면 전용 게임이야.</p></div></div>
 <canvas id="game"></canvas>
 <div id="hud" class="menu-hidden">
     <div class="top">
@@ -1277,6 +1316,18 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   resize();
   player=null;updateHud();
   requestAnimationFrame(frame);
+
+  // Installed Android PWAs can lock orientation when the browser permits it.
+  async function cbLockLandscape(){
+    try{
+      if(screen.orientation?.lock) await screen.orientation.lock('landscape');
+    }catch(e){
+      // Manifest orientation still requests landscape for installed app windows.
+    }
+  }
+  cbLockLandscape();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbLockLandscape();});
+  window.addEventListener('pageshow',cbLockLandscape);
 })();
 </script>
 
