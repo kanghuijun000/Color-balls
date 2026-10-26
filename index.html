@@ -137,9 +137,17 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   #mainOverlay .home-gold{padding:5px 10px}
   #mainOverlay #startBtn,#mainOverlay #openMultiBtn{padding:7px;font-size:12px}
 }
+
+/* In-app orientation toggle: never rotate the page with CSS. */
+#orientationToggle{position:fixed;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);z-index:10000;display:flex;align-items:center;justify-content:center;gap:6px;min-width:78px;min-height:40px;padding:8px 12px;border:1px solid #3a4968;border-radius:13px;background:rgba(16,24,43,.96);color:#f2f5ff;font:700 13px/1 system-ui,sans-serif;box-shadow:0 4px 18px #0005;touch-action:manipulation;}
+#orientationToggle:active{transform:scale(.97)}
+@media (orientation:landscape){#orientationToggle{left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);}}
+
 </style>
 </head>
 <body>
+<button id="orientationToggle" type="button" aria-label="화면 방향 변경" title="화면 방향 변경">↻ 가로</button>
+
 <canvas id="game"></canvas>
 <div id="hud" class="menu-hidden">
     <div class="top">
@@ -1284,24 +1292,52 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   requestAnimationFrame(frame);
 
   // Installed Android PWAs can lock orientation when the browser permits it.
-  async function cbLockLandscape(){
+  const orientationButton=document.getElementById('orientationToggle');
+  function cbCurrentOrientation(){
+    return (screen.orientation?.type || (window.matchMedia('(orientation:landscape)').matches?'landscape':'portrait')).startsWith('landscape')?'landscape':'portrait';
+  }
+  function cbUpdateOrientationButton(){
+    const current=cbCurrentOrientation();
+    if(orientationButton){
+      orientationButton.textContent=current==='landscape'?'↻ 세로':'↻ 가로';
+      orientationButton.setAttribute('aria-label',current==='landscape'?'세로 화면으로 전환':'가로 화면으로 전환');
+      orientationButton.title=current==='landscape'?'세로 화면으로 전환':'가로 화면으로 전환';
+    }
+  }
+  async function cbSetOrientation(target){
     try{
-      if(screen.orientation?.type?.startsWith('landscape')) return true;
       if(screen.orientation?.lock){
-        await screen.orientation.lock('landscape');
+        await screen.orientation.lock(target);
+        cbUpdateOrientationButton();
         return true;
       }
     }catch(e){}
-    // Do not rotate the page with CSS: it breaks all HUD/control positions.
-    // Installed Android PWA should take its orientation from manifest.json.
+    // Some installed browsers do not allow orientation locking from a web page.
+    // Keep the actual page unrotated and explain the browser limitation.
+    if(orientationButton){
+      orientationButton.textContent='↻ 방향 잠금 불가';
+      orientationButton.title='이 브라우저에서는 화면 방향 잠금을 지원하지 않아요.';
+      setTimeout(cbUpdateOrientationButton,1800);
+    }
     return false;
   }
-  ['pointerdown','touchstart','click','keydown'].forEach(type=>{
-    window.addEventListener(type,cbLockLandscape,{passive:true});
-  });
-  cbLockLandscape();
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbLockLandscape();});
-  window.addEventListener('pageshow',cbLockLandscape);
+  if(orientationButton){
+    orientationButton.addEventListener('click',async()=>{
+      const target=cbCurrentOrientation()==='landscape'?'portrait':'landscape';
+      const ok=await cbSetOrientation(target);
+      if(ok){
+        try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
+      }
+    });
+  }
+  window.addEventListener('orientationchange',cbUpdateOrientationButton);
+  screen.orientation?.addEventListener?.('change',cbUpdateOrientationButton);
+  cbUpdateOrientationButton();
+  try{
+    const preferred=localStorage.getItem('cbPreferredOrientation');
+    if(preferred==='portrait'||preferred==='landscape') cbSetOrientation(preferred);
+  }catch(e){}
+  
   window.addEventListener('orientationchange',()=>{
     // Layout follows the actual viewport; no CSS rotation fallback.
   });
