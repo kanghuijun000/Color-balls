@@ -99,14 +99,14 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   #multiOverlay .card{width:min(100%,960px);max-height:calc(100dvh - 24px);padding:16px 22px}
   #multiOverlay #multiLobby{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 18px;align-items:start}
   #multiOverlay #multiLobby.hidden{display:none!important}
-  #multiOverlay #multiLobby>.multiSection:first-child{grid-column:1}
+  #multiOverlay #multiLobby>.multiSection:first-child{grid-column:1;grid-row:1}
   #multiOverlay #multiLobby>.multiSection:nth-child(2){grid-column:1;grid-row:2}
   #multiOverlay #multiLobby>.multiSection:nth-child(3){grid-column:1;grid-row:3}
   #multiOverlay #multiLobby>strong{grid-column:2;grid-row:1}
   #multiOverlay #multiLobby>.multiPlayers{grid-column:2;grid-row:2;align-content:start}
-  #multiOverlay #multiLobby>#lobbyMessage{grid-column:2;grid-row:3}
-  #multiOverlay #multiLobby>#startMultiBtn{grid-column:2;grid-row:4}
-  #multiOverlay #multiLobby>#leaveRoomBtn{grid-column:2;grid-row:5}
+  #multiOverlay #multiLobby>#startMultiBtn{grid-column:2;grid-row:3;align-self:start}
+  #multiOverlay #multiLobby>#leaveRoomBtn{grid-column:2;grid-row:4;align-self:start}
+  #multiOverlay #multiLobby>#lobbyMessage{grid-column:2;grid-row:5;align-self:start}
   #multiOverlay .multiPlayers{grid-template-columns:1fr 1fr}
   #multiOverlay .multiSection{padding:10px;margin:0}
   #multiOverlay .multiField{margin:6px 0}
@@ -1313,16 +1313,12 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     orientationButtons.forEach(btn=>{btn.textContent='↻';btn.setAttribute('aria-label','화면 방향 바꾸기');btn.setAttribute('title','화면 방향 바꾸기');});
   }
   async function cbSetOrientation(target){
+    try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
     try{
       if(!screen.orientation?.lock) throw new Error('orientation lock unsupported');
-      if(!document.fullscreenElement && document.documentElement.requestFullscreen){
-        try{await document.documentElement.requestFullscreen();}catch(e){}
-      }
       await screen.orientation.lock(target);
-      try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
     }catch(e){
-      // Some browsers/PWA launch modes do not expose orientation locking.
-      // Keep the control minimal and avoid replacing it with a misleading error message.
+      // The browser may not permit orientation locking in this launch mode.
     }
     cbUpdateOrientationButtons();
   }
