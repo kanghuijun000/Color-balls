@@ -160,52 +160,54 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 }
 
 
-/* CSS fallback for browsers that reject the native orientation lock. */
+/* Landscape fallback: rotate a dedicated viewport wrapper so layout dimensions
+   are landscape-sized before rotation, instead of rotating a portrait-sized page. */
 @media (orientation:portrait) {
   html.cb-landscape-fallback, html.cb-landscape-fallback body {
     width:100%;height:100%;overflow:hidden;
   }
-  html.cb-landscape-fallback body {
+  html.cb-landscape-fallback body { position:fixed;inset:0; }
+  html.cb-landscape-fallback #cbLandscapeViewport {
     position:fixed;
     width:100dvh;height:100vw;
     left:100vw;top:0;
     transform:rotate(90deg);
     transform-origin:top left;
+    overflow:hidden;
   }
-  html.cb-landscape-fallback #mainOverlay {
-    min-height:100%;width:100%;overflow-y:auto;
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay {
+    width:100%;height:100%;min-height:0;overflow-y:auto;
+    padding:12px 24px;
+    display:flex;align-items:center;justify-content:center;
   }
-  html.cb-landscape-fallback #hud,
-  html.cb-landscape-fallback canvas,
-  html.cb-landscape-fallback .overlay,
-  html.cb-landscape-fallback #skillButtons,
-  html.cb-landscape-fallback .cbLivesHud,
-  html.cb-landscape-fallback .difficultyTag,
-  html.cb-landscape-fallback #toast {
-    position:absolute;
-  }
-  html.cb-landscape-fallback #mainOverlay .card {
-    width:min(100%,940px);
-    display:grid;
-    grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .card {
+    width:min(100%,940px);max-height:100%;padding:8px 0;
+    display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);
     grid-template-areas:"eyebrow gold" "title records" "desc records" "rules actions" "rules start" "rules multi" "small small";
     column-gap:30px;align-content:center;align-items:center;
   }
-  html.cb-landscape-fallback #mainOverlay .eyebrow{grid-area:eyebrow}
-  html.cb-landscape-fallback #mainOverlay .home-gold{grid-area:gold}
-  html.cb-landscape-fallback #mainOverlay .title{grid-area:title;font-size:clamp(32px,5vw,54px)}
-  html.cb-landscape-fallback #mainOverlay .desc{grid-area:desc}
-  html.cb-landscape-fallback #mainOverlay .rules{grid-area:rules}
-  html.cb-landscape-fallback #mainOverlay .record-panel{grid-area:records}
-  html.cb-landscape-fallback #mainOverlay .homeActions{grid-area:actions}
-  html.cb-landscape-fallback #mainOverlay #startBtn{grid-area:start}
-  html.cb-landscape-fallback #mainOverlay #openMultiBtn{grid-area:multi}
-  html.cb-landscape-fallback #mainOverlay .small{grid-area:small}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .eyebrow{grid-area:eyebrow;align-self:end}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .home-gold{grid-area:gold;width:100%;margin:0 0 8px}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .title{grid-area:title;font-size:clamp(32px,5vw,54px);margin:4px 0}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .desc{grid-area:desc;font-size:13px;margin:0 0 4px;line-height:1.45}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .rules{grid-area:rules;margin:6px 0;gap:8px}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .record-panel{grid-area:records;width:100%;margin:0 0 8px;gap:8px}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .homeActions{grid-area:actions;width:100%;margin:0 0 8px}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay #startBtn{grid-area:start}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay #openMultiBtn{grid-area:multi}
+  html.cb-landscape-fallback #cbLandscapeViewport #mainOverlay .small{grid-area:small;margin:8px 0 0}
+  html.cb-landscape-fallback #cbLandscapeViewport canvas,
+  html.cb-landscape-fallback #cbLandscapeViewport #hud,
+  html.cb-landscape-fallback #cbLandscapeViewport .overlay,
+  html.cb-landscape-fallback #cbLandscapeViewport #skillButtons,
+  html.cb-landscape-fallback #cbLandscapeViewport .cbLivesHud,
+  html.cb-landscape-fallback #cbLandscapeViewport .difficultyTag,
+  html.cb-landscape-fallback #cbLandscapeViewport #toast { position:absolute; }
 }
-
 </style>
 </head>
 <body>
+<div id="cbLandscapeViewport">
 <canvas id="game"></canvas>
 <div id="hud" class="menu-hidden">
     <div class="top">
@@ -1350,6 +1352,14 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   requestAnimationFrame(frame);
 
   // Installed Android PWAs can lock orientation when the browser permits it.
+  function cbEnsureLandscapeViewport(){
+    const viewport=document.getElementById('cbLandscapeViewport');
+    if(!viewport) return;
+    if(viewport.parentElement!==document.body){
+      document.body.insertBefore(viewport,document.body.firstChild);
+    }
+  }
+  cbEnsureLandscapeViewport();
   async function cbLockLandscape(){
     try{
       if(screen.orientation?.type?.startsWith('landscape')) {
@@ -1365,6 +1375,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     // If Android/Chrome refuses the native lock, use a landscape canvas viewport
     // rather than showing a rotate-your-phone prompt.
     if(window.matchMedia('(orientation: portrait)').matches){
+      cbEnsureLandscapeViewport();
       document.documentElement.classList.add('cb-landscape-fallback');
     }
     return false;
@@ -1402,5 +1413,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+</div>
 </body>
 </html>
