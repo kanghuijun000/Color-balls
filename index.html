@@ -159,10 +159,53 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   #toast{top:50%}
 }
 
+
+/* CSS fallback for browsers that reject the native orientation lock. */
+@media (orientation:portrait) {
+  html.cb-landscape-fallback, html.cb-landscape-fallback body {
+    width:100%;height:100%;overflow:hidden;
+  }
+  html.cb-landscape-fallback body {
+    position:fixed;
+    width:100dvh;height:100vw;
+    left:100vw;top:0;
+    transform:rotate(90deg);
+    transform-origin:top left;
+  }
+  html.cb-landscape-fallback #mainOverlay {
+    min-height:100%;width:100%;overflow-y:auto;
+  }
+  html.cb-landscape-fallback #hud,
+  html.cb-landscape-fallback canvas,
+  html.cb-landscape-fallback .overlay,
+  html.cb-landscape-fallback #skillButtons,
+  html.cb-landscape-fallback .cbLivesHud,
+  html.cb-landscape-fallback .difficultyTag,
+  html.cb-landscape-fallback #toast {
+    position:absolute;
+  }
+  html.cb-landscape-fallback #mainOverlay .card {
+    width:min(100%,940px);
+    display:grid;
+    grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);
+    grid-template-areas:"eyebrow gold" "title records" "desc records" "rules actions" "rules start" "rules multi" "small small";
+    column-gap:30px;align-content:center;align-items:center;
+  }
+  html.cb-landscape-fallback #mainOverlay .eyebrow{grid-area:eyebrow}
+  html.cb-landscape-fallback #mainOverlay .home-gold{grid-area:gold}
+  html.cb-landscape-fallback #mainOverlay .title{grid-area:title;font-size:clamp(32px,5vw,54px)}
+  html.cb-landscape-fallback #mainOverlay .desc{grid-area:desc}
+  html.cb-landscape-fallback #mainOverlay .rules{grid-area:rules}
+  html.cb-landscape-fallback #mainOverlay .record-panel{grid-area:records}
+  html.cb-landscape-fallback #mainOverlay .homeActions{grid-area:actions}
+  html.cb-landscape-fallback #mainOverlay #startBtn{grid-area:start}
+  html.cb-landscape-fallback #mainOverlay #openMultiBtn{grid-area:multi}
+  html.cb-landscape-fallback #mainOverlay .small{grid-area:small}
+}
+
 </style>
 </head>
 <body>
-<div id="rotateNotice" aria-live="polite"><div class="rotateCard"><div class="rotateIcon">↻</div><strong>휴대폰을 가로로 돌려 줘</strong><p style="color:#aebbd8;line-height:1.6;margin-bottom:0">COLOR-BALLS는 가로 화면 전용 게임이야.</p></div></div>
 <canvas id="game"></canvas>
 <div id="hud" class="menu-hidden">
     <div class="top">
@@ -1309,21 +1352,33 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   // Installed Android PWAs can lock orientation when the browser permits it.
   async function cbLockLandscape(){
     try{
-      if(screen.orientation?.type?.startsWith('landscape')) return;
-      if(screen.orientation?.lock) await screen.orientation.lock('landscape');
-    }catch(e){
-      // Android installed PWA should use manifest orientation; some browsers only
-      // permit orientation.lock after a user gesture.
+      if(screen.orientation?.type?.startsWith('landscape')) {
+        document.documentElement.classList.remove('cb-landscape-fallback');
+        return true;
+      }
+      if(screen.orientation?.lock) {
+        await screen.orientation.lock('landscape');
+        document.documentElement.classList.remove('cb-landscape-fallback');
+        return true;
+      }
+    }catch(e){}
+    // If Android/Chrome refuses the native lock, use a landscape canvas viewport
+    // rather than showing a rotate-your-phone prompt.
+    if(window.matchMedia('(orientation: portrait)').matches){
+      document.documentElement.classList.add('cb-landscape-fallback');
     }
+    return false;
   }
-  // Retry from real user gestures because some Android browsers reject a lock
-  // during initial page load, even for an installed app.
   ['pointerdown','touchstart','click','keydown'].forEach(type=>{
     window.addEventListener(type,cbLockLandscape,{passive:true});
   });
   cbLockLandscape();
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbLockLandscape();});
   window.addEventListener('pageshow',cbLockLandscape);
+  window.addEventListener('orientationchange',()=>{
+    if(window.matchMedia('(orientation: landscape)').matches)
+      document.documentElement.classList.remove('cb-landscape-fallback');
+  });
 })();
 </script>
 
