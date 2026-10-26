@@ -193,7 +193,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <button class="start" id="startBtn">혼자 플레이</button>
     <button class="secondary" id="openMultiBtn">친구와 플레이</button>
     <div class="small">터치 / 마우스 지원</div>
-    <button id="orientationToggle" class="orientationToggle" type="button">↻ 화면 회전</button>
+    <button id="orientationToggle" class="orientationToggle" type="button">↻</button>
   </div>
 </div>
 
@@ -283,7 +283,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     <p class="desc">게임을 어떻게 할까?</p>
     <button class="start" id="resumeCountdownBtn">다시 시작</button>
     <button class="secondary" id="abandonBtn">나가기</button>
-    <button id="pauseOrientationToggle" class="orientationToggle" type="button">↻ 화면 방향 바꾸기</button>
+    <button id="pauseOrientationToggle" class="orientationToggle" type="button">↻</button>
   </div>
 </div>
 <div id="skillButtons" class="hidden"></div>
@@ -1300,35 +1300,37 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   player=null;updateHud();
   requestAnimationFrame(frame);
 
-  // Installed Android PWAs can lock orientation when the browser permits it.
+  // Try fullscreen first because Android browsers commonly require it for orientation locking.
   const orientationButtons=[document.getElementById('orientationToggle'),document.getElementById('pauseOrientationToggle')].filter(Boolean);
   function cbCurrentOrientation(){
     return (screen.orientation?.type || (window.matchMedia('(orientation:landscape)').matches?'landscape':'portrait')).startsWith('landscape')?'landscape':'portrait';
   }
-  function cbUpdateOrientationButtons(message=''){
-    const current=cbCurrentOrientation();
-    orientationButtons.forEach(btn=>{btn.textContent=message || (current==='landscape'?'↻ 세로 화면으로 전환':'↻ 가로 화면으로 전환');});
+  function cbUpdateOrientationButtons(){
+    orientationButtons.forEach(btn=>{btn.textContent='↻';btn.setAttribute('aria-label','화면 방향 바꾸기');btn.setAttribute('title','화면 방향 바꾸기');});
   }
   async function cbSetOrientation(target){
     try{
       if(!screen.orientation?.lock) throw new Error('orientation lock unsupported');
+      if(!document.fullscreenElement && document.documentElement.requestFullscreen){
+        try{await document.documentElement.requestFullscreen();}catch(e){}
+      }
       await screen.orientation.lock(target);
       try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
-      cbUpdateOrientationButtons();
-      return true;
     }catch(e){
-      cbUpdateOrientationButtons('방향 전환을 지원하지 않는 환경');
-      setTimeout(()=>cbUpdateOrientationButtons(),2200);
-      return false;
+      // Some browsers/PWA launch modes do not expose orientation locking.
+      // Keep the control minimal and avoid replacing it with a misleading error message.
     }
+    cbUpdateOrientationButtons();
   }
   orientationButtons.forEach(btn=>btn.addEventListener('click',()=>cbSetOrientation(cbCurrentOrientation()==='landscape'?'portrait':'landscape')));
-  window.addEventListener('orientationchange',()=>cbUpdateOrientationButtons());
-  screen.orientation?.addEventListener?.('change',()=>cbUpdateOrientationButtons());
+  window.addEventListener('orientationchange',cbUpdateOrientationButtons);
+  screen.orientation?.addEventListener?.('change',cbUpdateOrientationButtons);
   cbUpdateOrientationButtons();
   try{
     const preferred=localStorage.getItem('cbPreferredOrientation');
-    if(preferred==='portrait'||preferred==='landscape') screen.orientation?.lock?.(preferred).catch(()=>{});
+    if((preferred==='portrait'||preferred==='landscape') && screen.orientation?.lock){
+      screen.orientation.lock(preferred).catch(()=>{});
+    }
   }catch(e){}
   window.addEventListener('orientationchange',()=>{
     // Layout follows the actual viewport; no CSS rotation fallback.
