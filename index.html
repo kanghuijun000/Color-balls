@@ -1314,13 +1314,37 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   async function cbSetOrientation(target){
     try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
-    try{
-      if(!screen.orientation?.lock) throw new Error('orientation lock unsupported');
-      await screen.orientation.lock(target);
-    }catch(e){
-      // The browser may not permit orientation locking in this launch mode.
+    if(!screen.orientation || typeof screen.orientation.lock!=='function'){
+      cbShowOrientationNotice('이 실행 환경에서는 화면 회전을 제어할 수 없어. 홈 화면에 설치한 앱에서 다시 시도해 줘.');
+      return;
     }
-    cbUpdateOrientationButtons();
+    try{
+      await screen.orientation.lock(target);
+      cbUpdateOrientationButtons();
+      return;
+    }catch(firstError){}
+    // Android Chrome may require fullscreen before it allows orientation locking.
+    try{
+      if(!document.fullscreenElement && document.documentElement.requestFullscreen){
+        await document.documentElement.requestFullscreen();
+      }
+      await screen.orientation.lock(target);
+      cbUpdateOrientationButtons();
+    }catch(secondError){
+      cbShowOrientationNotice('기기에서 화면 방향 잠금을 거부했어. 홈 화면에 설치한 앱에서 시도하거나 기기의 자동 회전을 켜 줘.');
+    }
+  }
+  function cbShowOrientationNotice(message){
+    let note=document.getElementById('cbOrientationNotice');
+    if(!note){
+      note=document.createElement('div');
+      note.id='cbOrientationNotice';
+      note.style.cssText='position:fixed;left:16px;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:99999;padding:12px 14px;border:1px solid #3a4968;border-radius:12px;background:#111b30;color:#eaf2ff;font:600 13px/1.45 system-ui,sans-serif;text-align:center;box-shadow:0 8px 28px #0008';
+      document.body.appendChild(note);
+    }
+    note.textContent=message;
+    clearTimeout(note._hideTimer);
+    note._hideTimer=setTimeout(()=>note.remove(),4500);
   }
   orientationButtons.forEach(btn=>btn.addEventListener('click',()=>cbSetOrientation(cbCurrentOrientation()==='landscape'?'portrait':'landscape')));
   window.addEventListener('orientationchange',cbUpdateOrientationButtons);
