@@ -68,6 +68,70 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
 .cbLivesHud{position:fixed;z-index:20;top:54px;left:50%;transform:translateX(-50%);display:flex;justify-content:center;gap:8px;max-width:96vw;overflow-x:auto;padding:6px 10px;border:1px solid #ffffff22;border-radius:14px;background:#0b1024dd;backdrop-filter:blur(8px);pointer-events:none}.cbLivesHud.hidden{display:none}.cbLifeItem{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;white-space:nowrap;font-size:11px;font-weight:900;color:#eaf1ff}.cbLifeHearts{display:flex;gap:2px;font-size:14px;line-height:1}.cbLifeHeart{font-size:14px;line-height:1}.multiNotice{font-size:12px;line-height:1.5;color:#aebbd8;margin:8px 0}
 .multiSection{border:1px solid #2a3650;border-radius:14px;background:#10172ad9;padding:13px;margin:12px 0}
 
+
+/* Landscape-first layout for installed app and browser fallback. */
+@media (orientation:landscape) {
+  #mainOverlay{padding: max(8px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));display:flex;align-items:center;justify-content:center}
+  #mainOverlay .card{width:min(100%,1000px);max-height:100%;overflow-y:auto;padding:8px 0;display:grid;grid-template-columns:minmax(220px,.85fr) minmax(280px,1fr);grid-template-areas:"brand gold" "brand desc" "brand rules" "brand records" "brand actions" "brand start" "brand multi" "brand small";column-gap:clamp(18px,4vw,52px);align-content:center;align-items:center}
+  #mainOverlay .eyebrow{grid-area:brand;align-self:start;position:absolute;top:8px;left:0}
+  #mainOverlay .title{grid-area:brand;align-self:center;font-size:clamp(44px,8vh,76px);line-height:.92;margin:0;max-width:100%;pointer-events:none}
+  #mainOverlay .home-gold{grid-area:gold;margin:0 0 6px;padding:8px 12px}
+  #mainOverlay .home-gold strong{font-size:21px}
+  #mainOverlay .desc{grid-area:desc;font-size:12px;line-height:1.4;margin:0 0 6px}
+  #mainOverlay .rules{grid-area:rules;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 6px}
+  #mainOverlay .rule{font-size:11px;gap:6px}
+  #mainOverlay .rule .symbol{width:20px;height:20px;flex:none}
+  #mainOverlay .record-panel{grid-area:records;gap:7px;margin:0 0 6px}
+  #mainOverlay .record{padding:8px 10px;border-radius:11px}
+  #mainOverlay .record-label{font-size:10px}
+  #mainOverlay .record-value{font-size:20px}
+  #mainOverlay .homeActions{grid-area:actions;margin:0 0 6px;gap:7px}
+  #mainOverlay .mode{padding:9px 5px;font-size:12px}
+  #mainOverlay #startBtn{grid-area:start;padding:11px;font-size:14px}
+  #mainOverlay #openMultiBtn{grid-area:multi;margin-top:6px;padding:10px;font-size:13px}
+  #mainOverlay .small{grid-area:small;margin-top:4px;font-size:10px}
+  #mainOverlay .manualOpen{top:0;right:0;padding:7px 10px;font-size:11px}
+  .overlay{padding:10px}
+  .card{max-height:calc(100dvh - 20px);overflow-y:auto}
+  #multiOverlay{padding:10px}
+  #multiOverlay .card{width:min(100%,900px);max-height:calc(100dvh - 20px);padding:16px 20px}
+  #multiLobby{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;align-items:start}
+  #multiLobby.hidden{display:none!important}
+  #multiLobby>.multiSection:first-child{grid-column:1}
+  #multiLobby>.multiSection:nth-child(2){grid-column:1}
+  #multiLobby>strong,#multiLobby>.multiPlayers{grid-column:2}
+  #multiLobby>.multiPlayers{margin:0}
+  #multiLobby>#startMultiBtn,#multiLobby>#leaveRoomBtn,#multiLobby>#lobbyMessage{grid-column:2}
+  .multiPlayers{grid-template-columns:1fr 1fr}
+  .multiSection{padding:10px;margin:4px 0}
+  .multiField{margin:6px 0}
+  .multiField input,.multiBtn{padding:9px}
+  .multiColorRow{margin:7px 0}
+  .cbLivesHud{top:calc(env(safe-area-inset-top) + 5px);gap:6px;padding:4px 8px}
+  .cbLifeItem{min-width:48px;font-size:10px}
+  .cbLifeHearts,.cbLifeHeart{font-size:12px}
+  .difficultyTag{top:calc(env(safe-area-inset-top) + 48px)}
+  #skillButtons{right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);flex-direction:row}
+  .skillButton{width:48px;height:48px;font-size:24px}
+  #toast{top:50%}
+}
+@media (orientation:landscape) and (max-height:430px) {
+  #mainOverlay .card{grid-template-columns:minmax(170px,.7fr) minmax(260px,1fr);column-gap:20px}
+  #mainOverlay .title{font-size:clamp(36px,9vh,54px)}
+  #mainOverlay .rules{grid-template-columns:1fr;gap:3px}
+  #mainOverlay .rule{font-size:10px}
+  #mainOverlay .home-gold{padding:6px 9px}
+  #mainOverlay .record{padding:5px 8px}
+  #mainOverlay .record-value{font-size:17px}
+  #mainOverlay .mode{padding:7px 4px}
+  #mainOverlay #startBtn,#mainOverlay #openMultiBtn{padding:8px;font-size:12px}
+}
+@media (orientation:portrait) {
+  body::before{content:"휴대폰을 가로로 돌려 주세요";position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;text-align:center;font-size:clamp(20px,5vw,30px);font-weight:1000;color:#f5f7ff;background:#080b16}
+  body>*{visibility:hidden!important}
+  body::before{visibility:visible!important}
+}
+
 </style>
 </head>
 <body>
