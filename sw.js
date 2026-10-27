@@ -1,4 +1,4 @@
-const CACHE_NAME = 'color-balls-shell-v16';
+const CACHE_NAME = 'color-balls-shell-v17';
 const APP_SHELL = ['./', './index.html', './manifest.json', './icon-256.svg', './icon-512.svg'];
 
 self.addEventListener('install', event => {
