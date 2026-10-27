@@ -638,7 +638,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
     updateHud();$('mainOverlay').classList.add('hidden');$('endOverlay').classList.add('hidden');$('hud').classList.remove('menu-hidden');
     running=true;paused=false;$('pauseBtn').textContent='Ⅱ';last=performance.now();updateHud();
-    announce('GO!',player.color);
+    // READY/START is rendered in the center; do not overlap it with a GO toast.
   }
   function updateHud(){
     $('homeBest').textContent=Number(bestByMode[bestViewMode]||0).toLocaleString();
@@ -735,7 +735,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('endOverlay').classList.remove('hidden');
   }
   function backToTitle(){
-    running=false;paused=false;pointerDown=false;pointerId=null;countdown=0;
+    running=false;paused=false;pointerDown=false;pointerId=null;countdown=0;startPhase='';startPhaseTimer=0;
     canvas.style.display='none';
     balls=[];particles=[];shake=0;
     $('pauseBtn').textContent='Ⅱ';
