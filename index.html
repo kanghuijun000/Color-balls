@@ -326,7 +326,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     {name:'LIME', hex:'#9cff7b', glow:'#4dbb42'}
   ];
   let W=0,H=0,dpr=1,player,balls=[],particles=[],score=0,combo=0,best=0,lastScore=0,gold=0,runGold=0,lives=3,invulnerable=0,eatenBalls=0;
-  let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0;
+  let running=false,paused=false,last=0,spawnClock=0,elapsed=0,shake=0,pointerDown=false,pointerId=null,countdown=0,startPhase='',startPhaseTimer=0;
   let selectedMode='easy';
   const recordModes=['easy','normal','hard','extreme'];
   const modeLabels={easy:'EASY',normal:'NORMAL',hard:'HARD',extreme:'EXTREME'};
@@ -632,7 +632,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   function rand(n){return Math.floor(Math.random()*n)}
   function chooseColor(){return rand(colors.length)}
   function reset(){
-    countdown=0;$('pauseOverlay').classList.add('hidden');$('buyConfirmOverlay').classList.add('hidden');canvas.style.display='block';
+    countdown=0;startPhase='READY';startPhaseTimer=.85;$('pauseOverlay').classList.add('hidden');$('buyConfirmOverlay').classList.add('hidden');canvas.style.display='block';
     slowTimer=0;$('shopOverlay').classList.add('hidden');
     score=0;combo=0;runGold=0;elapsed=0;lives=3;invulnerable=0;eatenBalls=0;spawnClock=.45;balls=[];particles=[];shake=0;
     player={x:W*.5,y:H*.65,r:Math.max(15,Math.min(23,W*.045)),color:chooseColor(),trail:[]};
@@ -769,7 +769,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       const cooldownLabel=button.querySelector('.skillCooldown');
       cooldownLabel.textContent=cooldown>0?cooldown.toFixed(1):'';
       cooldownLabel.classList.toggle('hidden',cooldown<=0);
-      button.disabled=count<=0||cooldown>0||!running||paused||countdown>0;
+      button.disabled=count<=0||cooldown>0||!running||paused||countdown>0||!!startPhase;
     });
   }
   function useSkill(type){
@@ -819,7 +819,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
     $('buySlowBtn').textContent=slowSkills>=3?'보유 최대':'30 골드 · 구매';
   }
   function togglePause(){
-    if(!running||countdown>0)return;
+    if(!running||countdown>0||startPhase)return;
     paused=true;pointerDown=false;pointerId=null;
     $('pauseBtn').textContent='▶';
     $('pauseOverlay').classList.remove('hidden');
@@ -827,12 +827,20 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   }
   function beginResumeCountdown(){
     if(!running)return;
+    startPhase='';startPhaseTimer=0;
     $('pauseOverlay').classList.add('hidden');
     paused=false;pointerDown=false;pointerId=null;countdown=3;last=performance.now();
     $('pauseBtn').textContent='Ⅱ';
     updateSkillButtonLabels();
   }
-  function abandonRun(){
+  async function abandonRun(){
+    if(cbMultiplayerActive&&cbRoom){
+      await cbLeaveRoom();
+      cbGameSessionStarted=false;
+      cbStopMultiplayer();
+      const livesHud=$('cbLivesHud');if(livesHud)livesHud.classList.add('hidden');
+    }
+    startPhase='';startPhaseTimer=0;countdown=0;
     if(runGold>0){
       gold=Math.max(0,gold-runGold);
       try{localStorage.setItem('colorBallsGold',String(gold))}catch(e){}
@@ -943,18 +951,18 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
       if(cbMultiplayerActive){ctx.save();ctx.fillStyle=cbPlayerColorHex(cbMyPlayer?.ball_color);ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=5;ctx.fillText(cbPlayerLabel(cbUser?.id),player.x,player.y-player.r-8);ctx.restore();}
     }
     ctx.restore();
-    if(running&&countdown>0){ctx.save();ctx.fillStyle='#ffffff';ctx.font='1000 '+Math.min(100,W*.22)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.fillText(String(Math.ceil(countdown)),W/2,H/2);ctx.restore();}
+    if(running&&(startPhase||countdown>0)){ctx.save();ctx.fillStyle='#ffffff';ctx.font='1000 '+Math.min(100,W*.22)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.fillText(startPhase||String(Math.ceil(countdown)),W/2,H/2);ctx.restore();}
     if(performance.now()>toastUntil){    cbSendPosition(performance.now());cbSyncBalls(performance.now());
 $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   function frame(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
     const shouldSimulate=(!paused&&(running||(cbMultiplayerActive&&!cbMatchEnded)));
-    if(shouldSimulate){if(countdown>0&&running){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
+    if(shouldSimulate){if(startPhase&&running){startPhaseTimer-=dt;if(startPhaseTimer<=0){if(startPhase==='READY'){startPhase='START';startPhaseTimer=.42;}else{startPhase='';startPhaseTimer=0;last=now;pointerDown=false;pointerId=null;updateSkillButtonLabels();}}}else if(countdown>0&&running){countdown=Math.max(0,countdown-dt);if(countdown===0){last=now;announce('GO!',player?player.color:null);}}else update(dt);}
     draw();requestAnimationFrame(frame);
   }
   function pointerMove(e){
-    if(!player||!running||paused||countdown>0)return;
+    if(!player||!running||paused||countdown>0||startPhase)return;
     if(e.pointerType==='mouse'){
       const rect=canvas.getBoundingClientRect();
       player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
@@ -965,7 +973,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
   }
   canvas.addEventListener('pointerdown',e=>{
-    if(!running||paused||countdown>0)return;
+    if(!running||paused||countdown>0||startPhase)return;
     pointerDown=true;pointerId=e.pointerId;
     if(canvas.setPointerCapture)canvas.setPointerCapture(e.pointerId);
     pointerMove(e);
@@ -1302,7 +1310,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   window.addEventListener('keydown',e=>{
     if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||cbMultiplayerActive)return;
     if(e.key!=='1'&&e.key!=='2')return;
-    if(!running||paused||countdown>0)return;
+    if(!running||paused||countdown>0||startPhase)return;
     const skillButtons=[...$('skillButtons').querySelectorAll('[data-skill]')];
     const button=skillButtons[Number(e.key)-1];
     if(!button||button.disabled)return;
