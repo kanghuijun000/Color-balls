@@ -1109,8 +1109,13 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       cbRoomPollBusy=true;
       try{
         const roomId=cbRoom.id;
-        const check=await cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle();
+        // Read room settings and participants in parallel to reduce visible join latency.
+        const [check,people]=await Promise.all([
+          cbClient.from('cb_rooms').select('*').eq('id',roomId).maybeSingle(),
+          cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true})
+        ]);
         if(check.error)throw check.error;
+        if(people.error)throw people.error;
         if(!check.data){
           cbMessage('방 정보를 찾을 수 없어. 방장이 방을 나갔을 수 있어.',true);
           return;
@@ -1118,6 +1123,9 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
         if(!cbRoom||cbRoom.id!==roomId)return;
         const previousRoomStatus=cbRoom.status;
         const previousHost=cbRoom.host_id;cbRoom=check.data;cbMode=cbRoom.mode;cbDifficulty=cbRoom.difficulty;cbLastRoomSyncAt=Date.now();
+        cbPlayers=people.data||[];
+        cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
+        cbRenderLobby();
         if(previousHost!==cbRoom.host_id){cbHostIdAtGameStart=cbRoom.host_id;cbHostEpoch++;cbBallSnapshotSeq=0;cbLastBallSnapshotSeq=-1;cbLastHostPacketAt=Date.now();if(cbUser?.id===cbRoom.host_id)cbMessage('새 방장이 경기를 이어받았어.',true);}
         if(previousRoomStatus==='playing'&&cbRoom.status==='waiting'&&cbMultiplayerActive){
           cbGameSessionStarted=false;cbStopMultiplayer();
@@ -1125,12 +1133,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
           $('hud').classList.add('menu-hidden');$('skillButtons').classList.add('hidden');
           cbShowLobby(true);
         }
-        // 참가자 목록을 매번 다시 읽어 인원수/색상/참가 상태를 맞춘다.
-        const people=await cbClient.from('cb_players').select('*').eq('room_id',roomId).order('joined_at',{ascending:true});
-        if(people.error)throw people.error;
         if(!cbRoom||cbRoom.id!==roomId)return;
-        cbPlayers=people.data||[];
-        cbMyPlayer=cbPlayers.find(p=>p.player_id===cbUser?.id)||null;
         // The current host records a server-side heartbeat; participants may
         // request takeover only through the guarded database function.
         if(cbRoom.status==='playing'&&cbIsCurrentHost()){
@@ -1154,7 +1157,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
       }catch(e){
         cbMessage('동기화 오류: '+(e.message||'연결을 확인해 줘.'),true);
       }finally{cbRoomPollBusy=false;}
-    },1200);
+    },500);
     if(cbRoom.status==='playing')cbStartGameClient();
   }
   async function cbCreateRoom(){
