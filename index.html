@@ -995,10 +995,12 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     player.x=e.clientX-rect.left;player.y=e.clientY-rect.top;
   }
   canvas.addEventListener('pointerdown',e=>{
-    if(!running||paused||countdown>0||startPhase==='READY')return;
+    if(!running||paused||startPhase==='READY')return;
+    // Allow touch/mouse input to be held during the resume countdown;
+    // movement itself remains locked until the countdown reaches zero.
     pointerDown=true;pointerId=e.pointerId;
     if(canvas.setPointerCapture)canvas.setPointerCapture(e.pointerId);
-    pointerMove(e);
+    if(countdown<=0)pointerMove(e);
   });
   canvas.addEventListener('pointermove',pointerMove);
   const release=()=>{pointerDown=false;pointerId=null};
