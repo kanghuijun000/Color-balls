@@ -102,13 +102,16 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   #multiOverlay #multiLobby>.multiSection:first-child{grid-column:1;grid-row:1}
   #multiOverlay #multiLobby>.multiSection:nth-child(2){grid-column:1;grid-row:2}
   #multiOverlay #multiLobby>.multiSection:nth-child(3){grid-column:1;grid-row:3}
-  #multiOverlay #multiLobby>.lobbyRight{grid-column:2;grid-row:1 / span 3;display:flex;flex-direction:column;align-items:stretch;gap:10px;min-width:0}
+  #multiOverlay #multiLobby>.lobbyRight{grid-column:2;grid-row:1 / span 3;align-self:center;display:flex;flex-direction:column;align-items:stretch;gap:10px;min-width:0}
   #multiOverlay #multiLobby>.lobbyRight>strong{margin:0}
   #multiOverlay #multiLobby>.lobbyRight>.multiPlayers{margin:0 0 2px;align-content:start}
   #multiOverlay #multiLobby>.lobbyRight>#startMultiBtn,
   #multiOverlay #multiLobby>.lobbyRight>#leaveRoomBtn{width:100%;margin:0;align-self:stretch}
   #multiOverlay #multiLobby>.lobbyRight>#lobbyMessage{margin:0}
-  #multiOverlay .multiPlayers{grid-template-columns:1fr 1fr}
+  #multiOverlay .multiPlayers{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(48px,auto);gap:8px}
+  #multiOverlay .multiPlayer{min-width:0;padding:8px;gap:6px}
+  #multiOverlay .multiPlayerName{font-size:12px}
+  #multiOverlay .multiPlayerMeta{font-size:10px}
   #multiOverlay .multiSection{padding:10px;margin:0}
   #multiOverlay .multiField{margin:6px 0}
   #multiOverlay .multiField input,#multiOverlay .multiBtn{padding:9px}
