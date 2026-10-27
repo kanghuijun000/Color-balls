@@ -983,14 +983,14 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     {id:'violet',hex:'#a78bff',name:'VIOLET'},
     {id:'lime',hex:'#9cff7b',name:'LIME'}
   ];
-  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null,cbRoomPollBusy=false,cbRoomPollId=null;
+  let cbUser=null,cbRoom=null,cbMyPlayer=null,cbPlayers=[],cbChannel=null,cbRoomChannel=null,cbRoomPollTimer=null,cbRoomPollBusy=false,cbRoomPollId=null,cbLeavingRoom=false;
   let cbMode='coop',cbDifficulty='normal',cbBusy=false,cbKickNoticeShowing=false;
   const cbEl=id=>document.getElementById(id);
   const cbModeNames={coop:'협동 생존',competitive:'최후의 생존자'};
   const cbDiffNames={easy:'EASY',normal:'NORMAL',hard:'HARD',extreme:'EXTREME'};
   function cbMessage(message,isLobby=false){cbEl(isLobby?'lobbyMessage':'multiMessage').textContent=message||'';}
   async function cbHandleKicked(){
-    if(cbKickNoticeShowing)return;
+    if(cbLeavingRoom||cbKickNoticeShowing)return;
     cbKickNoticeShowing=true;
     if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}
     cbRoomPollId=null;
@@ -1078,6 +1078,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     cbRenderLobby();if(cbMultiplayerActive)cbRenderLivesHud();
   }
   async function cbLoadRoom(roomId){
+    cbLeavingRoom=false;
     if(cbRoom?.id!==roomId)cbGameSessionStarted=false;
     const result=await cbClient.from('cb_rooms').select('*').eq('id',roomId).single();
     if(result.error)throw result.error;
@@ -1088,7 +1089,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     cbChannel=cbClient.channel('cb-players-'+cbRoom.id).on('postgres_changes',{event:'*',schema:'public',table:'cb_players',filter:'room_id=eq.'+cbRoom.id},async()=>{
       try{
         await cbRefreshPlayers();
-        if(cbRoom&&cbUser&&!cbMyPlayer){
+        if(!cbLeavingRoom&&cbRoom&&cbUser&&!cbMyPlayer){
           await cbHandleKicked();
         }
       }catch(e){cbMessage(e.message,true);}
@@ -1141,6 +1142,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
           if(!readyUpdate.error){cbRoom.status='waiting';cbRenderLobby();}
         }
         if(!cbMyPlayer){
+          if(cbLeavingRoom)return;
           await cbHandleKicked();
           return;
         }
@@ -1232,6 +1234,7 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   }
   async function cbLeaveRoom(){
     if(!cbRoom||!cbUser)return;
+    cbLeavingRoom=true;
     if(cbRoomPollTimer){clearInterval(cbRoomPollTimer);cbRoomPollTimer=null;}
     cbRoomPollId=null;
     if(cbChannel){await cbClient.removeChannel(cbChannel);cbChannel=null;}
