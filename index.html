@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#080b16">
 <link rel="icon" type="image/svg+xml" href="./icon-256.svg">
 <link rel="apple-touch-icon" href="./icon-512.svg">
-<link rel="manifest" href="./manifest.json?v=4">
+<link rel="manifest" href="./manifest.json?v=5">
 <title>COLOR-BALLS</title>
 <style>
 :root{color-scheme:dark;--bg:#080b16;--panel:#11182a;--muted:#8994b2;--white:#f5f7ff}
@@ -186,7 +186,7 @@ canvas{position:fixed;inset:0;display:none;width:100%;height:100%;touch-action:n
   <div class="card">
     <div class="eyebrow">REACTION · COLOR · SURVIVAL</div>
     <div class="home-gold"><span>보유 골드</span><strong id="homeGold">0</strong></div>
-    <div class="title">COLOR<br><span style="color:#6beaff">BALLS</span><span class="versionTag" id="appVersion">v22</span></div>
+    <div class="title">COLOR<br><span style="color:#6beaff">BALLS</span><span class="versionTag" id="appVersion">v23</span></div>
     <p class="desc">같은 색 공을 맞혀 점수를 쌓고, 다른 색 공은 피해서 최고 기록에 도전해 봐.</p>
     <div class="rules">
       <div class="rule"><span class="symbol" style="background:#63eaff;color:#07101f">✓</span> 같은 색 공은 점수 획득</div>
@@ -1348,30 +1348,39 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   player=null;updateHud();
   requestAnimationFrame(frame);
 
-  // Preserve the selected orientation without entering browser fullscreen,
-  // which triggers Android Chrome's unavoidable "exit fullscreen" message.
+  // Orientation is controlled separately from game state. Try the standard lock first;
+  // only if a user presses the rotate button and that fails, try fullscreen as a fallback.
+  // Android/Chrome may show its own fullscreen hint; a web page cannot suppress that system UI.
   const orientationButtons=[document.getElementById('orientationToggle'),document.getElementById('pauseOrientationToggle')].filter(Boolean);
   function cbCurrentOrientation(){
-    // Prefer the actual viewport orientation; ScreenOrientation.type can remain stale
-    // when the installed PWA's manifest forces a particular launch direction.
     return window.matchMedia('(orientation:landscape)').matches?'landscape':'portrait';
   }
   function cbUpdateOrientationButtons(){
     orientationButtons.forEach(btn=>{btn.textContent='↻';btn.setAttribute('aria-label','화면 방향 바꾸기');btn.setAttribute('title','화면 방향 바꾸기');});
   }
+  async function cbLockOrientation(target){
+    if(!screen.orientation || typeof screen.orientation.lock!=='function') throw new Error('orientation-lock-unavailable');
+    await screen.orientation.lock(target);
+  }
   async function cbSetOrientation(target){
     try{localStorage.setItem('cbPreferredOrientation',target);}catch(e){}
-    if(!screen.orientation || typeof screen.orientation.lock!=='function'){
-      cbShowOrientationNotice('이 실행 환경에서는 화면 회전을 제어할 수 없어. 홈 화면에 설치한 앱에서 다시 시도해 줘.');
-      return;
-    }
     try{
-      await screen.orientation.lock(target);
+      await cbLockOrientation(target);
       cbUpdateOrientationButtons();
+      return;
     }catch(error){
-      // Never enter browser fullscreen as a fallback because Android displays
-      // an intrusive system hint. Keep the preference and explain the limitation.
-      cbShowOrientationNotice('기기에서 화면 회전을 허용하지 않았어. 자동 회전 설정을 확인하고 설치 앱을 다시 열어 줘.');
+      // Fullscreen is attempted only after an explicit tap, never automatically on launch.
+      // Some Android Chrome versions require fullscreen before orientation.lock succeeds.
+      try{
+        if(!document.fullscreenElement && document.documentElement.requestFullscreen){
+          await document.documentElement.requestFullscreen();
+        }
+        await cbLockOrientation(target);
+        cbUpdateOrientationButtons();
+        return;
+      }catch(fallbackError){
+        cbShowOrientationNotice('화면 회전이 차단됐어. 설치 앱에서 다시 시도하거나 기기의 자동 회전 설정을 확인해 줘.');
+      }
     }
   }
   function cbShowOrientationNotice(message){
