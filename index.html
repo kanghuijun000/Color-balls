@@ -1348,7 +1348,8 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   player=null;updateHud();
   requestAnimationFrame(frame);
 
-  // Try fullscreen first because Android browsers commonly require it for orientation locking.
+  // Preserve the selected orientation without entering browser fullscreen,
+  // which triggers Android Chrome's unavoidable "exit fullscreen" message.
   const orientationButtons=[document.getElementById('orientationToggle'),document.getElementById('pauseOrientationToggle')].filter(Boolean);
   function cbCurrentOrientation(){
     return (screen.orientation?.type || (window.matchMedia('(orientation:landscape)').matches?'landscape':'portrait')).startsWith('landscape')?'landscape':'portrait';
@@ -1365,17 +1366,11 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     try{
       await screen.orientation.lock(target);
       cbUpdateOrientationButtons();
-      return;
-    }catch(firstError){}
-    // Android Chrome may require fullscreen before it allows orientation locking.
-    try{
-      if(!document.fullscreenElement && document.documentElement.requestFullscreen){
-        await document.documentElement.requestFullscreen();
-      }
-      await screen.orientation.lock(target);
-      cbUpdateOrientationButtons();
-    }catch(secondError){
-      cbShowOrientationNotice('기기에서 화면 방향 잠금을 거부했어. 홈 화면에 설치한 앱에서 시도하거나 기기의 자동 회전을 켜 줘.');
+    }catch(error){
+      // Do not request browser fullscreen as a fallback: Android Chrome displays
+      // a system message that the page cannot dismiss. Keep the saved preference
+      // and retry when the installed app returns to the foreground.
+      cbShowOrientationNotice('화면 방향을 바로 고정하지 못했어. 홈 화면에 설치한 앱에서 다시 시도해 줘.');
     }
   }
   function cbShowOrientationNotice(message){
@@ -1394,16 +1389,26 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   window.addEventListener('orientationchange',cbUpdateOrientationButtons);
   screen.orientation?.addEventListener?.('change',cbUpdateOrientationButtons);
   cbUpdateOrientationButtons();
+  function cbSaveCurrentOrientation(){
+    try{localStorage.setItem('cbPreferredOrientation',cbCurrentOrientation());}catch(e){}
+  }
   function cbRetryPreferredOrientation(){
-    try{
-      const preferred=localStorage.getItem('cbPreferredOrientation');
-      if((preferred==='portrait'||preferred==='landscape') && screen.orientation?.lock){
-        screen.orientation.lock(preferred).catch(()=>{});
-      }
-    }catch(e){}
+    let preferred='';
+    try{preferred=localStorage.getItem('cbPreferredOrientation')||'';}catch(e){}
+    if((preferred!=='portrait'&&preferred!=='landscape')||!screen.orientation?.lock)return;
+    // Android may restore the PWA viewport after pageshow; retry briefly so the
+    // last selected direction is re-applied after the app is reopened.
+    const attempt=()=>{if(!document.hidden)screen.orientation.lock(preferred).catch(()=>{});};
+    attempt();
+    setTimeout(attempt,150);
+    setTimeout(attempt,500);
+    setTimeout(attempt,1100);
   }
   cbRetryPreferredOrientation();
+  window.addEventListener('pagehide',cbSaveCurrentOrientation);
+  window.addEventListener('beforeunload',cbSaveCurrentOrientation);
   window.addEventListener('pageshow',cbRetryPreferredOrientation);
+  window.addEventListener('focus',cbRetryPreferredOrientation);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbRetryPreferredOrientation();});
   window.addEventListener('orientationchange',()=>{
     // Layout follows the actual viewport; no CSS rotation fallback.
