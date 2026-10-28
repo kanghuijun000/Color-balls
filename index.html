@@ -1389,12 +1389,15 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
   window.addEventListener('orientationchange',cbUpdateOrientationButtons);
   screen.orientation?.addEventListener?.('change',cbUpdateOrientationButtons);
   cbUpdateOrientationButtons();
-  function cbSaveCurrentOrientation(){
-    try{localStorage.setItem('cbPreferredOrientation',cbCurrentOrientation());}catch(e){}
-  }
   function cbRetryPreferredOrientation(){
     let preferred='';
-    try{preferred=localStorage.getItem('cbPreferredOrientation')||'';}catch(e){}
+    try{
+      preferred=localStorage.getItem('cbPreferredOrientation')||'';
+      if(preferred!=='portrait'&&preferred!=='landscape'){
+        preferred=cbCurrentOrientation();
+        localStorage.setItem('cbPreferredOrientation',preferred);
+      }
+    }catch(e){}
     if((preferred!=='portrait'&&preferred!=='landscape')||!screen.orientation?.lock)return;
     // Android may restore the PWA viewport after pageshow; retry briefly so the
     // last selected direction is re-applied after the app is reopened.
@@ -1405,8 +1408,6 @@ $('toast').style.opacity='0';$('toast').style.transform='translate(-50%,-68%)';}
     setTimeout(attempt,1100);
   }
   cbRetryPreferredOrientation();
-  window.addEventListener('pagehide',cbSaveCurrentOrientation);
-  window.addEventListener('beforeunload',cbSaveCurrentOrientation);
   window.addEventListener('pageshow',cbRetryPreferredOrientation);
   window.addEventListener('focus',cbRetryPreferredOrientation);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)cbRetryPreferredOrientation();});
